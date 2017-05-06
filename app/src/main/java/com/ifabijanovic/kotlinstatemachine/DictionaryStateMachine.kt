@@ -1,6 +1,7 @@
 package com.ifabijanovic.kotlinstatemachine
 
 import io.reactivex.Observable
+import io.reactivex.Scheduler
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.Disposable
 import io.reactivex.subjects.PublishSubject
@@ -9,7 +10,7 @@ import io.reactivex.subjects.PublishSubject
  * Created by Ivan Fabijanovic on 06/05/2017.
  */
 
-class DictionaryStateMachine<Key, State>(val effectsForKey: (Key) -> (Observable<State>) -> Observable<State?>) {
+class DictionaryStateMachine<Key, State>(scheduler: Scheduler, val effectsForKey: (Key) -> (Observable<State>) -> Observable<Command<Key, State>>) {
     private val commands: PublishSubject<Pair<Key, State>> = PublishSubject.create()
     private val stateSubscription: Disposable
 
@@ -21,9 +22,9 @@ class DictionaryStateMachine<Key, State>(val effectsForKey: (Key) -> (Observable
         }
 
         this.state = system(
-                mapOf<Key, State>(),
+                mutableMapOf<Key, State>(),
                 ::reduce,
-                AndroidSchedulers.mainThread(),
+                scheduler,
                 userCommandsFeedback, perKeyFeedbackLoop(this.effectsForKey))
                 .share().replay(1).refCount()
 
@@ -39,7 +40,7 @@ class DictionaryStateMachine<Key, State>(val effectsForKey: (Key) -> (Observable
     }
 }
 
-private sealed class Command<Key, State> {
+sealed class Command<Key, State> {
     data class Update<Key, State>(val state: Pair<Key, State>) : Command<Key, State>()
     data class Finish<Key, State>(val key: Key) : Command<Key, State>()
 }
@@ -68,18 +69,18 @@ private sealed class MutationEvent<in Key, out State> {
 
 private fun <Key, State> reduce(state: Map<Key, State>, command: Command<Key, State>): Map<Key, State> = when(command) {
     is Command.Update -> {
-        val newState = state as MutableMap
+        val newState = HashMap(state)
         newState[command.state.first] = command.state.second
         newState
     }
     is Command.Finish -> {
-        val newState = state as MutableMap
+        val newState = HashMap(state)
         newState.remove(command.key)
         newState
     }
 }
 
-private fun <Key, State> perKeyFeedbackLoop(effects: (Key) -> (Observable<State>) -> Observable<State?>): (Observable<Map<Key, State>>) -> Observable<Command<Key, State>> {
+private fun <Key, State> perKeyFeedbackLoop(effects: (Key) -> (Observable<State>) -> Observable<Command<Key, State>>): (Observable<Map<Key, State>>) -> Observable<Command<Key, State>> {
     return { state ->
         val events = scanAndMaybeEmit(
                 observable = state,
@@ -112,7 +113,6 @@ private fun <Key, State> perKeyFeedbackLoop(effects: (Key) -> (Observable<State>
                             .distinctUntilChanged()
 
                     return@flatMap effects(keyState.first)(statePerKey)
-                            .map { it?.let { Command.Update(Pair(keyState.first, it)) } ?: Command.Finish<Key, State>(keyState.first) }
                             .takeUntil(events.filter { it.isFinished(keyState.first) })
                 }
     }
