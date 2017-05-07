@@ -25,8 +25,8 @@ class DictionaryStateMachine<Key, State>(scheduler: Scheduler, val effectsForKey
                 mutableMapOf<Key, State>(),
                 ::reduce,
                 scheduler,
-                userCommandsFeedback, perKeyFeedbackLoop(this.effectsForKey))
-                .share().replay(1).refCount()
+                userCommandsFeedback, perKeyFeedbackLoop(this.effectsForKey)
+        ).share().replay(1).refCount()
 
         this.stateSubscription = this.state.subscribe()
     }
@@ -40,9 +40,9 @@ class DictionaryStateMachine<Key, State>(scheduler: Scheduler, val effectsForKey
     }
 }
 
-sealed class Command<Key, State> {
-    data class Update<Key, State>(val state: Pair<Key, State>) : Command<Key, State>()
-    data class Finish<Key, State>(val key: Key) : Command<Key, State>()
+sealed class Command<out Key, out State> {
+    data class Update<out Key, out State>(val state: Pair<Key, State>) : Command<Key, State>()
+    data class Finish<out Key, out State>(val key: Key) : Command<Key, State>()
 }
 
 private sealed class MutationEvent<in Key, out State> {

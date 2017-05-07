@@ -2,9 +2,8 @@ package com.ifabijanovic.kotlinstatemachine
 
 import io.reactivex.Observable
 import io.reactivex.observers.TestObserver
-import io.reactivex.schedulers.Schedulers
 import io.reactivex.schedulers.TestScheduler
-import io.reactivex.subscribers.TestSubscriber
+import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
@@ -17,7 +16,7 @@ import java.util.concurrent.TimeUnit
 class DictionaryStateMachineTests {
     var scheduler = TestScheduler()
     var observer = TestObserver<Map<Int, TestState>>()
-    var stateMachine = DictionaryStateMachine<Int,TestState>(this.scheduler, { _ -> { _ -> Observable.just(null) } })
+    var stateMachine = DictionaryStateMachine<Int,TestState>(this.scheduler, { _ -> { _ -> Observable.empty() } })
 
     @Before
     fun setUp() {
@@ -25,7 +24,12 @@ class DictionaryStateMachineTests {
         this.observer = TestObserver()
         this.stateMachine = DictionaryStateMachine(this.scheduler, TestStateFeedbackLoops(this.scheduler)::feedbackLoops)
         this.stateMachine.state.subscribe(this.observer)
-        this.scheduler.createWorker().schedule({ this.stateMachine.dispose() }, 999, TimeUnit.SECONDS)
+    }
+
+    @After
+    fun tearDown() {
+        this.observer.dispose()
+        this.stateMachine.dispose()
     }
 
     fun performOp1(key: Int) {
