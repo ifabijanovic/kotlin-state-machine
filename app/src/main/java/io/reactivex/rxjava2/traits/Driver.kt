@@ -20,11 +20,11 @@ class DriverTraits {
 
         private var _sharedScheduler: () -> (Scheduler) = { AndroidSchedulers.mainThread() }
 
-        fun schedulerIsNow(factory: () -> Scheduler, action: () -> Unit) {
+        fun <Result> schedulerIsNow(factory: () -> Scheduler, action: () -> Result): Result {
             val current = _sharedScheduler
             try {
                 _sharedScheduler = factory
-                action()
+                return action()
             }
             finally {
                 _sharedScheduler = current
@@ -53,25 +53,11 @@ fun <Element> SharedSequence.Companion.never(): Driver<Element> {
     return Driver(Observable.never(), DriverTraits.Companion)
 }
 
-// observable
-
-fun <Element> Observable<Element>.asDriver(onErrorJustReturn: Element): Driver<Element> {
-    return SharedSequence(this.onErrorReturn { onErrorJustReturn }, DriverTraits.Companion)
-}
-
-fun <Element> Observable<Element>.asDriver(onErrorDriveWith: (Throwable) -> Driver<Element>): Driver<Element> {
-    return SharedSequence(this.onErrorResumeNext { error: Throwable -> onErrorDriveWith(error)._source }, DriverTraits.Companion)
-}
-
-fun <Element> Observable<Element>.asDriverIgnoreError(): Driver<Element> {
-    return SharedSequence(this.onErrorResumeNext { error: Throwable -> Observable.empty() }, DriverTraits.Companion)
-}
+// operations
 
 fun <Element> SharedSequence.Companion.defer(factory: () -> Driver<Element>): Driver<Element> {
     return SharedSequence(Observable.defer { factory()._source }, DriverTraits.Companion)
 }
-
-// operations
 
 fun <Element> SharedSequence.Companion.merge(sources: Iterable<Driver<out Element>>): Driver<Element> {
     return SharedSequence(Observable.merge(sources.map { it._source }), DriverTraits.Companion)

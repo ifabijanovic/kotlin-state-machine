@@ -20,7 +20,7 @@ import org.reactivestreams.Subscriber
 class DictionaryStateMachineDeviceTests {
     var scheduler = TestScheduler()
     var observer = TestObserver<Map<Device, TestDeviceState>>()
-    var stateMachine = DictionaryStateMachine<Device,TestDeviceState>({ _ -> { _ -> Driver.empty() } })
+    var stateMachine = DriverTraits.schedulerIsNow({ this.scheduler }) { DictionaryStateMachine<Device,TestDeviceState>({ _ -> { _ -> Driver.empty() } }) }
     var connectionCount = 0
 
     val pairData = "pair data"
@@ -66,24 +66,26 @@ class DictionaryStateMachineDeviceTests {
 
     @Test
     fun singleDeviceSingleOperation() {
-        this.makeStateMachine(this::perfectConnection)
-        val device = Device(1)
+        DriverTraits.schedulerIsNow({ this.scheduler }) {
+            this.makeStateMachine(this::perfectConnection)
+            val device = Device(1)
 
-        assertEquals(this.connectionCount, 0)
+            assertEquals(this.connectionCount, 0)
 
-        this.scheduler.createWorker().schedule({ this.sync(device) }, 300, TimeUnit.SECONDS)
-        this.scheduler.advanceTimeBy(1000, TimeUnit.SECONDS)
+            this.scheduler.createWorker().schedule({ this.sync(device) }, 300, TimeUnit.SECONDS)
+            this.scheduler.advanceTimeBy(1000, TimeUnit.SECONDS)
 
-        assertEquals(this.observer.values(), listOf(
-                mapOf(),
-                mapOf(Pair(device, TestDeviceState.Start(TestDeviceState.Sync(TestDeviceState.SyncState.Read)))),
-                mapOf(Pair(device, TestDeviceState.Sync(TestDeviceState.SyncState.Read))),
-                mapOf(Pair(device, TestDeviceState.Sync(TestDeviceState.SyncState.Process(this.syncData)))),
-                mapOf(Pair(device, TestDeviceState.Sync(TestDeviceState.SyncState.Save(this.syncData, this.syncSavePath)))),
-                mapOf(Pair(device, TestDeviceState.Sync(TestDeviceState.SyncState.Clear))),
-                mapOf()
-        ))
+            assertEquals(this.observer.values(), listOf(
+                    mapOf(),
+                    mapOf(Pair(device, TestDeviceState.Start(TestDeviceState.Sync(TestDeviceState.SyncState.Read)))),
+                    mapOf(Pair(device, TestDeviceState.Sync(TestDeviceState.SyncState.Read))),
+                    mapOf(Pair(device, TestDeviceState.Sync(TestDeviceState.SyncState.Process(this.syncData)))),
+                    mapOf(Pair(device, TestDeviceState.Sync(TestDeviceState.SyncState.Save(this.syncData, this.syncSavePath)))),
+                    mapOf(Pair(device, TestDeviceState.Sync(TestDeviceState.SyncState.Clear))),
+                    mapOf()
+            ))
 
-        assertEquals(this.connectionCount, 1)
+            assertEquals(this.connectionCount, 1)
+        }
     }
 }
