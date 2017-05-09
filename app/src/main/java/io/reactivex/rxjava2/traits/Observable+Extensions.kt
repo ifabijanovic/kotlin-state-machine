@@ -7,14 +7,12 @@ import io.reactivex.Observable
  */
 
 fun log(line: String) {
-    println(line)
+  println(line)
 }
 
 fun <Element> Observable<Element>.debug(id: String): Observable<Element> =
-        this.doOnNext { log("$id -> next $it") }
-                .doOnError { log("$id -> error $it") }
-                .doOnComplete { log("$id -> completed") }
-                .doOnSubscribe { log("$id -> subscribe") }
-                .doOnDispose { log("$id -> dispose") }
-
-
+    this.doOnNext { log("$id -> next $it") }
+        .doOnError { log("$id -> error $it") }
+        .doOnComplete { log("$id -> completed") }
+        .doOnSubscribe { log("$id -> subscribe") }
+        .doOnDispose { log("$id -> dispose") }
