@@ -2,6 +2,7 @@ package com.ifabijanovic.kotlinstatemachine
 
 import io.reactivex.Observable
 import io.reactivex.observers.TestObserver
+import io.reactivex.rxjava2.traits.*
 import io.reactivex.schedulers.TestScheduler
 import org.junit.After
 import org.junit.Assert.*
@@ -16,14 +17,16 @@ import java.util.concurrent.TimeUnit
 class DictionaryStateMachineTests {
     var scheduler = TestScheduler()
     var observer = TestObserver<Map<Int, TestState>>()
-    var stateMachine = DictionaryStateMachine<Int,TestState>(this.scheduler, { _ -> { _ -> Observable.empty() } })
+    var stateMachine = DictionaryStateMachine<Int,TestState>({ _ -> { _ -> Driver.empty() } })
 
     @Before
     fun setUp() {
         this.scheduler = TestScheduler()
         this.observer = TestObserver()
-        this.stateMachine = DictionaryStateMachine(this.scheduler, TestStateFeedbackLoops(this.scheduler)::feedbackLoops)
-        this.stateMachine.state.subscribe(this.observer)
+        DriverTraits.schedulerIsNow({ this.scheduler }) {
+            this.stateMachine = DictionaryStateMachine(TestStateFeedbackLoops(this.scheduler)::feedbackLoops)
+            this.stateMachine.state.drive(this.observer)
+        }
     }
 
     @After

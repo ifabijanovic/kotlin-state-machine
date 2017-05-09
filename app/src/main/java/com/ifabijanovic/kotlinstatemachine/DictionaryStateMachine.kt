@@ -1,34 +1,37 @@
 package com.ifabijanovic.kotlinstatemachine
 
+import android.util.Log
 import io.reactivex.Observable
 import io.reactivex.Scheduler
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.Disposable
+import io.reactivex.rxjava2.traits.Driver
+import io.reactivex.rxjava2.traits.asDriverIgnoreError
+import io.reactivex.rxjava2.traits.*
 import io.reactivex.subjects.PublishSubject
 
 /**
  * Created by Ivan Fabijanovic on 06/05/2017.
  */
 
-class DictionaryStateMachine<Key, State>(scheduler: Scheduler, val effectsForKey: (Key) -> (Observable<State>) -> Observable<Command<Key, State>>) {
+class DictionaryStateMachine<Key, State>(val effectsForKey: (Key) -> (Driver<State>) -> Driver<Command<Key, State>>) {
     private val commands: PublishSubject<Pair<Key, State>> = PublishSubject.create()
     private val stateSubscription: Disposable
 
-    val state: Observable<Map<Key, State>>
+    val state: Driver<Map<Key, State>>
 
     init {
-        val userCommandsFeedback: (Observable<Map<Key, State>>) -> Observable<Command<Key, State>> = { _ ->
-            this.commands.map { Command.Update(it) }
+        val userCommandsFeedback: (Driver<Map<Key, State>>) -> Driver<Command<Key, State>> = { _ ->
+            this.commands.asDriverIgnoreError().map { Command.Update(it) }
         }
 
-        this.state = system(
+        this.state = Driver.system(
                 mutableMapOf<Key, State>(),
                 ::reduce,
-                scheduler,
                 userCommandsFeedback, perKeyFeedbackLoop(this.effectsForKey)
-        ).share().replay(1).refCount()
+        )
 
-        this.stateSubscription = this.state.subscribe()
+        this.stateSubscription = this.state.drive()
     }
 
     fun transition(to: Pair<Key, State>) {
@@ -80,10 +83,9 @@ private fun <Key, State> reduce(state: Map<Key, State>, command: Command<Key, St
     }
 }
 
-private fun <Key, State> perKeyFeedbackLoop(effects: (Key) -> (Observable<State>) -> Observable<Command<Key, State>>): (Observable<Map<Key, State>>) -> Observable<Command<Key, State>> {
+private fun <Key, State> perKeyFeedbackLoop(effects: (Key) -> (Driver<State>) -> Driver<Command<Key, State>>): (Driver<Map<Key, State>>) -> Driver<Command<Key, State>> {
     return { state ->
-        val events = scanAndMaybeEmit(
-                observable = state,
+        val events = state.scanAndMaybeEmit(
                 state = mapOf<Key, State>(),
                 accumulator = { states ->
                     val oldState = states.first
@@ -102,18 +104,20 @@ private fun <Key, State> perKeyFeedbackLoop(effects: (Key) -> (Observable<State>
 
         events
                 .flatMap { event ->
-                    val started = event as? MutationEvent.Started<Key, State> ?: return@flatMap Observable.empty<Command<Key, State>>()
+                    val started = event as? MutationEvent.Started<Key, State> ?: return@flatMap Driver.empty<Command<Key, State>>()
 
                     val keyState = started.state
 
                     val statePerKey = events
                             .filter { it.isUpdate(keyState.first) }
                             .startWith(event)
-                            .flatMap { it.state()?.let { Observable.just(it) } ?: Observable.empty() }
+                            .flatMap { it.state()?.let { Driver.just(it) } ?: Driver.empty() }
                             .distinctUntilChanged()
 
                     return@flatMap effects(keyState.first)(statePerKey)
-                            .takeUntil(events.filter { it.isFinished(keyState.first) })
+                            .asObservable()
+                            .takeUntil(events.filter { it.isFinished(keyState.first) }.asObservable())
+                            .asDriverIgnoreError()
                 }
     }
 }

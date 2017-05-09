@@ -2,12 +2,16 @@ package com.ifabijanovic.kotlinstatemachine
 
 import io.reactivex.Observable
 import io.reactivex.observers.TestObserver
+import io.reactivex.rxjava2.traits.*
 import io.reactivex.schedulers.TestScheduler
 import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
 import java.util.concurrent.TimeUnit
+import org.reactivestreams.Subscriber
+
+
 
 /**
  * Created by Ivan Fabijanovic on 07/05/2017.
@@ -16,7 +20,7 @@ import java.util.concurrent.TimeUnit
 class DictionaryStateMachineDeviceTests {
     var scheduler = TestScheduler()
     var observer = TestObserver<Map<Device, TestDeviceState>>()
-    var stateMachine = DictionaryStateMachine<Device,TestDeviceState>(this.scheduler, { _ -> { _ -> Observable.empty() } })
+    var stateMachine = DictionaryStateMachine<Device,TestDeviceState>({ _ -> { _ -> Driver.empty() } })
     var connectionCount = 0
 
     val pairData = "pair data"
@@ -38,8 +42,10 @@ class DictionaryStateMachineDeviceTests {
     }
 
     fun makeStateMachine(connect: (Device) -> Observable<ConnectionResult>, syncData: String = this.syncData) {
-        this.stateMachine = DictionaryStateMachine(this.scheduler, TestDeviceStateFeedbackLoops(this.scheduler, this.pairData, syncData, this.syncSavePath, connect)::feedbackLoops)
-        this.stateMachine.state.subscribe(this.observer)
+        DriverTraits.schedulerIsNow({ this.scheduler }, {
+            this.stateMachine = DictionaryStateMachine(TestDeviceStateFeedbackLoops(this.scheduler, this.pairData, syncData, this.syncSavePath, connect)::feedbackLoops)
+            this.stateMachine.state.drive(this.observer)
+        })
     }
 
     fun perfectConnection(device: Device): Observable<ConnectionResult> {

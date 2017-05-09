@@ -1,8 +1,10 @@
 package com.ifabijanovic.kotlinstatemachine
 
 import io.reactivex.Observable
+import io.reactivex.rxjava2.traits.*
 import io.reactivex.schedulers.TestScheduler
 import java.util.concurrent.TimeUnit
+
 
 /**
  * Created by Ivan Fabijanovic on 07/05/2017.
@@ -55,7 +57,7 @@ class TestDeviceStateFeedbackLoops(
         val syncSavePath: String,
         val connect: (Device) -> Observable<ConnectionResult>
 ) {
-    fun feedbackLoops(key: Device): (Observable<TestDeviceState>) -> Observable<Command<Device, TestDeviceState>> {
+    fun feedbackLoops(key: Device): (Driver<TestDeviceState>) -> Driver<Command<Device, TestDeviceState>> {
         return { state ->
             state
                     .map { it.needsConnection() }
@@ -63,10 +65,11 @@ class TestDeviceStateFeedbackLoops(
                     .switchMap { needsConnection ->
                         if (!needsConnection) {
                             return@switchMap state.switchMap { state ->
-                                when (state) {
-                                    is TestDeviceState.Start -> Observable.just(Command.Update(Pair(key, state.newState)))
-                                    else -> Observable.just(Command.Finish<Device, TestDeviceState>(key))
+                                val r: Driver<Command<Device, TestDeviceState>> = when (state) {
+                                    is TestDeviceState.Start -> Driver.just(Command.Update(Pair(key, state.newState)))
+                                    else -> Driver.just(Command.Finish<Device, TestDeviceState>(key))
                                 }
+                                r
                             }
                         }
 
@@ -82,25 +85,26 @@ class TestDeviceStateFeedbackLoops(
                                         is TestDeviceState.PoweredOff -> Observable.just(Command.Update(Pair(key, currentState.nextState)))
                                     }
                                 })
+                                .asDriver(onErrorDriveWith= { Driver.just(Command.Update(Pair(key, TestDeviceState.Error(it)))) })
                     }
         }
     }
 
-    private fun connect(device: Device, state: Observable<TestDeviceState>, effects: (Pair<TestDeviceState, ConnectedDevice
+    private fun connect(device: Device, state: Driver<TestDeviceState>, effects: (Pair<TestDeviceState, ConnectedDevice
             >) -> Observable<Command<Device, TestDeviceState>>): Observable<Command<Device, TestDeviceState>> {
         return this
                 .connect(device)
                 .switchMap { connectionResult ->
                     return@switchMap state
+                            .asObservable()
                             .take(1)
                             .flatMap { currentState ->
                                 when (connectionResult) {
                                     is ConnectionResult.PoweredOff -> Observable.just(Command.Update(Pair(device, currentState)))
-                                    is ConnectionResult.Success -> state.switchMap { effects(Pair(it, connectionResult.connectedDevice)) }
+                                    is ConnectionResult.Success -> state.asObservable().switchMap { effects(Pair(it, connectionResult.connectedDevice)) }
                                 }
                             }
                 }
-                .onErrorReturn { Command.Update(Pair(device, TestDeviceState.Error(it))) }
     }
 
     private fun handleState(device: Device, connectedDevice: ConnectedDevice, state: TestDeviceState.PairState): Observable<Command<Device, TestDeviceState>> = when (state) {

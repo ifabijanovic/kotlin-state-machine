@@ -1,6 +1,7 @@
 package com.ifabijanovic.kotlinstatemachine
 
 import io.reactivex.Observable
+import io.reactivex.rxjava2.traits.*
 import io.reactivex.schedulers.TestScheduler
 import java.util.concurrent.TimeUnit
 
@@ -22,7 +23,7 @@ sealed class TestState {
 }
 
 class TestStateFeedbackLoops(val scheduler: TestScheduler) {
-    fun feedbackLoops(key: Int): (Observable<TestState>) -> Observable<Command<Int, TestState>> {
+    fun feedbackLoops(key: Int): (Driver<TestState>) -> Driver<Command<Int, TestState>> {
         return { state ->
             state.switchMap { state ->
                 Observable.defer {
@@ -45,6 +46,7 @@ class TestStateFeedbackLoops(val scheduler: TestScheduler) {
                         is TestState.Error -> this.finish(0, key)
                     }
                 }.onErrorReturn { Command.Update(Pair(key, TestState.Error(it))) }
+                        .asDriverIgnoreError()
             }
         }
     }
