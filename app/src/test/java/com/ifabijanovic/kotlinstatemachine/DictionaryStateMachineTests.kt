@@ -17,7 +17,9 @@ import java.util.concurrent.TimeUnit
 class DictionaryStateMachineTests {
     var scheduler = TestScheduler()
     var observer = TestObserver<Map<Int, TestState>>()
-    var stateMachine = DictionaryStateMachine<Int,TestState>({ _ -> { _ -> Driver.empty() } })
+    var stateMachine = DriverTraits.schedulerIsNow({ this.scheduler }) {
+        DictionaryStateMachine<Int, TestState>({ _ -> { _ -> Driver.empty() } })
+    }
 
     @Before
     fun setUp() {
@@ -45,254 +47,274 @@ class DictionaryStateMachineTests {
 
     @Test
     fun singleKeySingleOperation() {
-        this.scheduler.createWorker().schedule({ this.performOp1(1) }, 300, TimeUnit.SECONDS)
-        this.scheduler.advanceTimeBy(1000, TimeUnit.SECONDS)
+        DriverTraits.schedulerIsNow({ this.scheduler }) {
+            this.scheduler.createWorker().schedule({ this.performOp1(1) }, 300, TimeUnit.SECONDS)
+            this.scheduler.advanceTimeBy(1000, TimeUnit.SECONDS)
 
-        assertEquals(this.observer.values(), listOf(
-                mapOf(),
-                mapOf(Pair(1, TestState.Operation1(TestState.Operation.Start))),
-                mapOf(Pair(1, TestState.Operation1(TestState.Operation.Work("op1")))),
-                mapOf(Pair(1, TestState.Operation1(TestState.Operation.Finish))),
-                mapOf()
-        ))
+            assertEquals(this.observer.values(), listOf(
+                    mapOf(),
+                    mapOf(Pair(1, TestState.Operation1(TestState.Operation.Start))),
+                    mapOf(Pair(1, TestState.Operation1(TestState.Operation.Work("op1")))),
+                    mapOf(Pair(1, TestState.Operation1(TestState.Operation.Finish))),
+                    mapOf()
+            ))
+        }
     }
 
     @Test
     fun singleKeyMultipleSameSequentialOperations() {
-        this.scheduler.createWorker().schedule({ this.performOp1(1) }, 300, TimeUnit.SECONDS)
-        this.scheduler.createWorker().schedule({ this.performOp1(1) }, 400, TimeUnit.SECONDS)
-        this.scheduler.createWorker().schedule({ this.performOp1(1) }, 500, TimeUnit.SECONDS)
-        this.scheduler.advanceTimeBy(1000, TimeUnit.SECONDS)
+        DriverTraits.schedulerIsNow({ this.scheduler }) {
+            this.scheduler.createWorker().schedule({ this.performOp1(1) }, 300, TimeUnit.SECONDS)
+            this.scheduler.createWorker().schedule({ this.performOp1(1) }, 400, TimeUnit.SECONDS)
+            this.scheduler.createWorker().schedule({ this.performOp1(1) }, 500, TimeUnit.SECONDS)
+            this.scheduler.advanceTimeBy(1000, TimeUnit.SECONDS)
 
-        assertEquals(this.observer.values(), listOf(
-                mapOf(),
-                mapOf(Pair(1, TestState.Operation1(TestState.Operation.Start))),
-                mapOf(Pair(1, TestState.Operation1(TestState.Operation.Work("op1")))),
-                mapOf(Pair(1, TestState.Operation1(TestState.Operation.Finish))),
-                mapOf(),
-                mapOf(Pair(1, TestState.Operation1(TestState.Operation.Start))),
-                mapOf(Pair(1, TestState.Operation1(TestState.Operation.Work("op1")))),
-                mapOf(Pair(1, TestState.Operation1(TestState.Operation.Finish))),
-                mapOf(),
-                mapOf(Pair(1, TestState.Operation1(TestState.Operation.Start))),
-                mapOf(Pair(1, TestState.Operation1(TestState.Operation.Work("op1")))),
-                mapOf(Pair(1, TestState.Operation1(TestState.Operation.Finish))),
-                mapOf()
-        ))
+            assertEquals(this.observer.values(), listOf(
+                    mapOf(),
+                    mapOf(Pair(1, TestState.Operation1(TestState.Operation.Start))),
+                    mapOf(Pair(1, TestState.Operation1(TestState.Operation.Work("op1")))),
+                    mapOf(Pair(1, TestState.Operation1(TestState.Operation.Finish))),
+                    mapOf(),
+                    mapOf(Pair(1, TestState.Operation1(TestState.Operation.Start))),
+                    mapOf(Pair(1, TestState.Operation1(TestState.Operation.Work("op1")))),
+                    mapOf(Pair(1, TestState.Operation1(TestState.Operation.Finish))),
+                    mapOf(),
+                    mapOf(Pair(1, TestState.Operation1(TestState.Operation.Start))),
+                    mapOf(Pair(1, TestState.Operation1(TestState.Operation.Work("op1")))),
+                    mapOf(Pair(1, TestState.Operation1(TestState.Operation.Finish))),
+                    mapOf()
+            ))
+        }
     }
 
     @Test
     fun singleKeyMultipleDifferentSequentialOperations() {
-        this.scheduler.createWorker().schedule({ this.performOp2(1) }, 300, TimeUnit.SECONDS)
-        this.scheduler.createWorker().schedule({ this.performOp2(1) }, 400, TimeUnit.SECONDS)
-        this.scheduler.createWorker().schedule({ this.performOp1(1) }, 500, TimeUnit.SECONDS)
-        this.scheduler.createWorker().schedule({ this.performOp2(1) }, 600, TimeUnit.SECONDS)
-        this.scheduler.createWorker().schedule({ this.performOp1(1) }, 700, TimeUnit.SECONDS)
-        this.scheduler.advanceTimeBy(1000, TimeUnit.SECONDS)
+        DriverTraits.schedulerIsNow({ this.scheduler }) {
+            this.scheduler.createWorker().schedule({ this.performOp2(1) }, 300, TimeUnit.SECONDS)
+            this.scheduler.createWorker().schedule({ this.performOp2(1) }, 400, TimeUnit.SECONDS)
+            this.scheduler.createWorker().schedule({ this.performOp1(1) }, 500, TimeUnit.SECONDS)
+            this.scheduler.createWorker().schedule({ this.performOp2(1) }, 600, TimeUnit.SECONDS)
+            this.scheduler.createWorker().schedule({ this.performOp1(1) }, 700, TimeUnit.SECONDS)
+            this.scheduler.advanceTimeBy(1000, TimeUnit.SECONDS)
 
-        assertEquals(this.observer.values(), listOf(
-                mapOf(),
-                mapOf(Pair(1, TestState.Operation2(TestState.Operation.Start))),
-                mapOf(Pair(1, TestState.Operation2(TestState.Operation.Work("op2")))),
-                mapOf(Pair(1, TestState.Operation2(TestState.Operation.Finish))),
-                mapOf(),
-                mapOf(Pair(1, TestState.Operation2(TestState.Operation.Start))),
-                mapOf(Pair(1, TestState.Operation2(TestState.Operation.Work("op2")))),
-                mapOf(Pair(1, TestState.Operation2(TestState.Operation.Finish))),
-                mapOf(),
-                mapOf(Pair(1, TestState.Operation1(TestState.Operation.Start))),
-                mapOf(Pair(1, TestState.Operation1(TestState.Operation.Work("op1")))),
-                mapOf(Pair(1, TestState.Operation1(TestState.Operation.Finish))),
-                mapOf(),
-                mapOf(Pair(1, TestState.Operation2(TestState.Operation.Start))),
-                mapOf(Pair(1, TestState.Operation2(TestState.Operation.Work("op2")))),
-                mapOf(Pair(1, TestState.Operation2(TestState.Operation.Finish))),
-                mapOf(),
-                mapOf(Pair(1, TestState.Operation1(TestState.Operation.Start))),
-                mapOf(Pair(1, TestState.Operation1(TestState.Operation.Work("op1")))),
-                mapOf(Pair(1, TestState.Operation1(TestState.Operation.Finish))),
-                mapOf()
-        ))
+            assertEquals(this.observer.values(), listOf(
+                    mapOf(),
+                    mapOf(Pair(1, TestState.Operation2(TestState.Operation.Start))),
+                    mapOf(Pair(1, TestState.Operation2(TestState.Operation.Work("op2")))),
+                    mapOf(Pair(1, TestState.Operation2(TestState.Operation.Finish))),
+                    mapOf(),
+                    mapOf(Pair(1, TestState.Operation2(TestState.Operation.Start))),
+                    mapOf(Pair(1, TestState.Operation2(TestState.Operation.Work("op2")))),
+                    mapOf(Pair(1, TestState.Operation2(TestState.Operation.Finish))),
+                    mapOf(),
+                    mapOf(Pair(1, TestState.Operation1(TestState.Operation.Start))),
+                    mapOf(Pair(1, TestState.Operation1(TestState.Operation.Work("op1")))),
+                    mapOf(Pair(1, TestState.Operation1(TestState.Operation.Finish))),
+                    mapOf(),
+                    mapOf(Pair(1, TestState.Operation2(TestState.Operation.Start))),
+                    mapOf(Pair(1, TestState.Operation2(TestState.Operation.Work("op2")))),
+                    mapOf(Pair(1, TestState.Operation2(TestState.Operation.Finish))),
+                    mapOf(),
+                    mapOf(Pair(1, TestState.Operation1(TestState.Operation.Start))),
+                    mapOf(Pair(1, TestState.Operation1(TestState.Operation.Work("op1")))),
+                    mapOf(Pair(1, TestState.Operation1(TestState.Operation.Finish))),
+                    mapOf()
+            ))
+        }
     }
 
     @Test
     fun singleKeyInterruptOperationWithSameOperation() {
-        this.scheduler.createWorker().schedule({ this.performOp1(1) }, 300, TimeUnit.SECONDS)
-        this.scheduler.createWorker().schedule({ this.performOp1(1) }, 320, TimeUnit.SECONDS)
-        this.scheduler.createWorker().schedule({ this.performOp1(1) }, 340, TimeUnit.SECONDS)
-        this.scheduler.advanceTimeBy(1000, TimeUnit.SECONDS)
+        DriverTraits.schedulerIsNow({ this.scheduler }) {
+            this.scheduler.createWorker().schedule({ this.performOp1(1) }, 300, TimeUnit.SECONDS)
+            this.scheduler.createWorker().schedule({ this.performOp1(1) }, 320, TimeUnit.SECONDS)
+            this.scheduler.createWorker().schedule({ this.performOp1(1) }, 340, TimeUnit.SECONDS)
+            this.scheduler.advanceTimeBy(1000, TimeUnit.SECONDS)
 
-        assertEquals(this.observer.values(), listOf(
-                mapOf(),
-                mapOf(Pair(1, TestState.Operation1(TestState.Operation.Start))),
-                mapOf(Pair(1, TestState.Operation1(TestState.Operation.Work("op1")))),
-                mapOf(Pair(1, TestState.Operation1(TestState.Operation.Start))),
-                mapOf(Pair(1, TestState.Operation1(TestState.Operation.Work("op1")))),
-                mapOf(Pair(1, TestState.Operation1(TestState.Operation.Start))),
-                mapOf(Pair(1, TestState.Operation1(TestState.Operation.Work("op1")))),
-                mapOf(Pair(1, TestState.Operation1(TestState.Operation.Finish))),
-                mapOf()
-        ))
+            assertEquals(this.observer.values(), listOf(
+                    mapOf(),
+                    mapOf(Pair(1, TestState.Operation1(TestState.Operation.Start))),
+                    mapOf(Pair(1, TestState.Operation1(TestState.Operation.Work("op1")))),
+                    mapOf(Pair(1, TestState.Operation1(TestState.Operation.Start))),
+                    mapOf(Pair(1, TestState.Operation1(TestState.Operation.Work("op1")))),
+                    mapOf(Pair(1, TestState.Operation1(TestState.Operation.Start))),
+                    mapOf(Pair(1, TestState.Operation1(TestState.Operation.Work("op1")))),
+                    mapOf(Pair(1, TestState.Operation1(TestState.Operation.Finish))),
+                    mapOf()
+            ))
+        }
     }
 
     @Test
     fun singleKeyInterruptOperationWithDifferentOperation() {
-        this.scheduler.createWorker().schedule({ this.performOp1(1) }, 300, TimeUnit.SECONDS)
-        this.scheduler.createWorker().schedule({ this.performOp2(1) }, 320, TimeUnit.SECONDS)
-        this.scheduler.advanceTimeBy(1000, TimeUnit.SECONDS)
+        DriverTraits.schedulerIsNow({ this.scheduler }) {
+            this.scheduler.createWorker().schedule({ this.performOp1(1) }, 300, TimeUnit.SECONDS)
+            this.scheduler.createWorker().schedule({ this.performOp2(1) }, 320, TimeUnit.SECONDS)
+            this.scheduler.advanceTimeBy(1000, TimeUnit.SECONDS)
 
-        assertEquals(this.observer.values(), listOf(
-                mapOf(),
-                mapOf(Pair(1, TestState.Operation1(TestState.Operation.Start))),
-                mapOf(Pair(1, TestState.Operation1(TestState.Operation.Work("op1")))),
-                mapOf(Pair(1, TestState.Operation2(TestState.Operation.Start))),
-                mapOf(Pair(1, TestState.Operation2(TestState.Operation.Work("op2")))),
-                mapOf(Pair(1, TestState.Operation2(TestState.Operation.Finish))),
-                mapOf()
-        ))
+            assertEquals(this.observer.values(), listOf(
+                    mapOf(),
+                    mapOf(Pair(1, TestState.Operation1(TestState.Operation.Start))),
+                    mapOf(Pair(1, TestState.Operation1(TestState.Operation.Work("op1")))),
+                    mapOf(Pair(1, TestState.Operation2(TestState.Operation.Start))),
+                    mapOf(Pair(1, TestState.Operation2(TestState.Operation.Work("op2")))),
+                    mapOf(Pair(1, TestState.Operation2(TestState.Operation.Finish))),
+                    mapOf()
+            ))
+        }
     }
 
     @Test
     fun twoKeysSameOperationSequential() {
-        this.scheduler.createWorker().schedule({ this.performOp1(1) }, 300, TimeUnit.SECONDS)
-        this.scheduler.createWorker().schedule({ this.performOp1(2) }, 400, TimeUnit.SECONDS)
-        this.scheduler.advanceTimeBy(1000, TimeUnit.SECONDS)
+        DriverTraits.schedulerIsNow({ this.scheduler }) {
+            this.scheduler.createWorker().schedule({ this.performOp1(1) }, 300, TimeUnit.SECONDS)
+            this.scheduler.createWorker().schedule({ this.performOp1(2) }, 400, TimeUnit.SECONDS)
+            this.scheduler.advanceTimeBy(1000, TimeUnit.SECONDS)
 
-        assertEquals(this.observer.values(), listOf(
-                mapOf(),
-                mapOf(Pair(1, TestState.Operation1(TestState.Operation.Start))),
-                mapOf(Pair(1, TestState.Operation1(TestState.Operation.Work("op1")))),
-                mapOf(Pair(1, TestState.Operation1(TestState.Operation.Finish))),
-                mapOf(),
-                mapOf(Pair(2, TestState.Operation1(TestState.Operation.Start))),
-                mapOf(Pair(2, TestState.Operation1(TestState.Operation.Work("op1")))),
-                mapOf(Pair(2, TestState.Operation1(TestState.Operation.Finish))),
-                mapOf()
-        ))
+            assertEquals(this.observer.values(), listOf(
+                    mapOf(),
+                    mapOf(Pair(1, TestState.Operation1(TestState.Operation.Start))),
+                    mapOf(Pair(1, TestState.Operation1(TestState.Operation.Work("op1")))),
+                    mapOf(Pair(1, TestState.Operation1(TestState.Operation.Finish))),
+                    mapOf(),
+                    mapOf(Pair(2, TestState.Operation1(TestState.Operation.Start))),
+                    mapOf(Pair(2, TestState.Operation1(TestState.Operation.Work("op1")))),
+                    mapOf(Pair(2, TestState.Operation1(TestState.Operation.Finish))),
+                    mapOf()
+            ))
+        }
     }
 
     @Test
     fun twoKeysDifferentOperationSequential() {
-        this.scheduler.createWorker().schedule({ this.performOp1(1) }, 300, TimeUnit.SECONDS)
-        this.scheduler.createWorker().schedule({ this.performOp2(2) }, 400, TimeUnit.SECONDS)
-        this.scheduler.advanceTimeBy(1000, TimeUnit.SECONDS)
+        DriverTraits.schedulerIsNow({ this.scheduler }) {
+            this.scheduler.createWorker().schedule({ this.performOp1(1) }, 300, TimeUnit.SECONDS)
+            this.scheduler.createWorker().schedule({ this.performOp2(2) }, 400, TimeUnit.SECONDS)
+            this.scheduler.advanceTimeBy(1000, TimeUnit.SECONDS)
 
-        assertEquals(this.observer.values(), listOf(
-                mapOf(),
-                mapOf(Pair(1, TestState.Operation1(TestState.Operation.Start))),
-                mapOf(Pair(1, TestState.Operation1(TestState.Operation.Work("op1")))),
-                mapOf(Pair(1, TestState.Operation1(TestState.Operation.Finish))),
-                mapOf(),
-                mapOf(Pair(2, TestState.Operation2(TestState.Operation.Start))),
-                mapOf(Pair(2, TestState.Operation2(TestState.Operation.Work("op2")))),
-                mapOf(Pair(2, TestState.Operation2(TestState.Operation.Finish))),
-                mapOf()
-        ))
+            assertEquals(this.observer.values(), listOf(
+                    mapOf(),
+                    mapOf(Pair(1, TestState.Operation1(TestState.Operation.Start))),
+                    mapOf(Pair(1, TestState.Operation1(TestState.Operation.Work("op1")))),
+                    mapOf(Pair(1, TestState.Operation1(TestState.Operation.Finish))),
+                    mapOf(),
+                    mapOf(Pair(2, TestState.Operation2(TestState.Operation.Start))),
+                    mapOf(Pair(2, TestState.Operation2(TestState.Operation.Work("op2")))),
+                    mapOf(Pair(2, TestState.Operation2(TestState.Operation.Finish))),
+                    mapOf()
+            ))
+        }
     }
 
     @Test
     fun twoKeysSameOperationOverlapping() {
-        this.scheduler.createWorker().schedule({ this.performOp1(1) }, 300, TimeUnit.SECONDS)
-        this.scheduler.createWorker().schedule({ this.performOp1(2) }, 310, TimeUnit.SECONDS)
-        this.scheduler.advanceTimeBy(1000, TimeUnit.SECONDS)
+        DriverTraits.schedulerIsNow({ this.scheduler }) {
+            this.scheduler.createWorker().schedule({ this.performOp1(1) }, 300, TimeUnit.SECONDS)
+            this.scheduler.createWorker().schedule({ this.performOp1(2) }, 310, TimeUnit.SECONDS)
+            this.scheduler.advanceTimeBy(1000, TimeUnit.SECONDS)
 
-        assertEquals(this.observer.values(), listOf(
-                mapOf(),
-                mapOf(Pair(1, TestState.Operation1(TestState.Operation.Start))),
-                mapOf(Pair(1, TestState.Operation1(TestState.Operation.Work("op1")))),
-                mapOf(
-                        Pair(1, TestState.Operation1(TestState.Operation.Work("op1"))),
-                        Pair(2, TestState.Operation1(TestState.Operation.Start))
-                ),
-                mapOf(
-                        Pair(1, TestState.Operation1(TestState.Operation.Work("op1"))),
-                        Pair(2, TestState.Operation1(TestState.Operation.Work("op1")))
-                ),
-                mapOf(
-                        Pair(1, TestState.Operation1(TestState.Operation.Finish)),
-                        Pair(2, TestState.Operation1(TestState.Operation.Work("op1")))
-                ),
-                mapOf(Pair(2, TestState.Operation1(TestState.Operation.Work("op1")))),
-                mapOf(Pair(2, TestState.Operation1(TestState.Operation.Finish))),
-                mapOf()
-        ))
+            assertEquals(this.observer.values(), listOf(
+                    mapOf(),
+                    mapOf(Pair(1, TestState.Operation1(TestState.Operation.Start))),
+                    mapOf(Pair(1, TestState.Operation1(TestState.Operation.Work("op1")))),
+                    mapOf(
+                            Pair(1, TestState.Operation1(TestState.Operation.Work("op1"))),
+                            Pair(2, TestState.Operation1(TestState.Operation.Start))
+                    ),
+                    mapOf(
+                            Pair(1, TestState.Operation1(TestState.Operation.Work("op1"))),
+                            Pair(2, TestState.Operation1(TestState.Operation.Work("op1")))
+                    ),
+                    mapOf(
+                            Pair(1, TestState.Operation1(TestState.Operation.Finish)),
+                            Pair(2, TestState.Operation1(TestState.Operation.Work("op1")))
+                    ),
+                    mapOf(Pair(2, TestState.Operation1(TestState.Operation.Work("op1")))),
+                    mapOf(Pair(2, TestState.Operation1(TestState.Operation.Finish))),
+                    mapOf()
+            ))
+        }
     }
 
     @Test
     fun twoKeysDifferentOperationOverlapping() {
-        this.scheduler.createWorker().schedule({ this.performOp2(1) }, 300, TimeUnit.SECONDS)
-        this.scheduler.createWorker().schedule({ this.performOp1(2) }, 310, TimeUnit.SECONDS)
-        this.scheduler.advanceTimeBy(1000, TimeUnit.SECONDS)
+        DriverTraits.schedulerIsNow({ this.scheduler }) {
+            this.scheduler.createWorker().schedule({ this.performOp2(1) }, 300, TimeUnit.SECONDS)
+            this.scheduler.createWorker().schedule({ this.performOp1(2) }, 310, TimeUnit.SECONDS)
+            this.scheduler.advanceTimeBy(1000, TimeUnit.SECONDS)
 
-        assertEquals(this.observer.values(), listOf(
-                mapOf(),
-                mapOf(Pair(1, TestState.Operation2(TestState.Operation.Start))),
-                mapOf(Pair(1, TestState.Operation2(TestState.Operation.Work("op2")))),
-                mapOf(
-                        Pair(1, TestState.Operation2(TestState.Operation.Work("op2"))),
-                        Pair(2, TestState.Operation1(TestState.Operation.Start))
-                ),
-                mapOf(
-                        Pair(1, TestState.Operation2(TestState.Operation.Work("op2"))),
-                        Pair(2, TestState.Operation1(TestState.Operation.Work("op1")))
-                ),
-                mapOf(
-                        Pair(1, TestState.Operation2(TestState.Operation.Finish)),
-                        Pair(2, TestState.Operation1(TestState.Operation.Work("op1")))
-                ),
-                mapOf(Pair(2, TestState.Operation1(TestState.Operation.Work("op1")))),
-                mapOf(Pair(2, TestState.Operation1(TestState.Operation.Finish))),
-                mapOf()
-        ))
+            assertEquals(this.observer.values(), listOf(
+                    mapOf(),
+                    mapOf(Pair(1, TestState.Operation2(TestState.Operation.Start))),
+                    mapOf(Pair(1, TestState.Operation2(TestState.Operation.Work("op2")))),
+                    mapOf(
+                            Pair(1, TestState.Operation2(TestState.Operation.Work("op2"))),
+                            Pair(2, TestState.Operation1(TestState.Operation.Start))
+                    ),
+                    mapOf(
+                            Pair(1, TestState.Operation2(TestState.Operation.Work("op2"))),
+                            Pair(2, TestState.Operation1(TestState.Operation.Work("op1")))
+                    ),
+                    mapOf(
+                            Pair(1, TestState.Operation2(TestState.Operation.Finish)),
+                            Pair(2, TestState.Operation1(TestState.Operation.Work("op1")))
+                    ),
+                    mapOf(Pair(2, TestState.Operation1(TestState.Operation.Work("op1")))),
+                    mapOf(Pair(2, TestState.Operation1(TestState.Operation.Finish))),
+                    mapOf()
+            ))
+        }
     }
 
     @Test
     fun twoKeysDifferentOperationOverlappingWithInterrupts() {
-        this.scheduler.createWorker().schedule({ this.performOp2(1) }, 300, TimeUnit.SECONDS)
-        this.scheduler.createWorker().schedule({ this.performOp1(2) }, 310, TimeUnit.SECONDS)
-        this.scheduler.createWorker().schedule({ this.performOp1(1) }, 313, TimeUnit.SECONDS)
-        this.scheduler.createWorker().schedule({ this.performOp2(2) }, 337, TimeUnit.SECONDS)
-        this.scheduler.advanceTimeBy(1000, TimeUnit.SECONDS)
+        DriverTraits.schedulerIsNow({ this.scheduler }) {
+            this.scheduler.createWorker().schedule({ this.performOp2(1) }, 300, TimeUnit.SECONDS)
+            this.scheduler.createWorker().schedule({ this.performOp1(2) }, 310, TimeUnit.SECONDS)
+            this.scheduler.createWorker().schedule({ this.performOp1(1) }, 313, TimeUnit.SECONDS)
+            this.scheduler.createWorker().schedule({ this.performOp2(2) }, 337, TimeUnit.SECONDS)
+            this.scheduler.advanceTimeBy(1000, TimeUnit.SECONDS)
 
-        assertEquals(this.observer.values(), listOf(
-                mapOf(),
-                mapOf(Pair(1, TestState.Operation2(TestState.Operation.Start))),
-                mapOf(Pair(1, TestState.Operation2(TestState.Operation.Work("op2")))),
-                mapOf(
-                        Pair(1, TestState.Operation2(TestState.Operation.Work("op2"))),
-                        Pair(2, TestState.Operation1(TestState.Operation.Start))
-                ),
-                mapOf(
-                        Pair(1, TestState.Operation1(TestState.Operation.Start)),
-                        Pair(2, TestState.Operation1(TestState.Operation.Start))
-                ),
-                mapOf(
-                        Pair(1, TestState.Operation1(TestState.Operation.Start)),
-                        Pair(2, TestState.Operation1(TestState.Operation.Work("op1")))
-                ),
-                mapOf(
-                        Pair(1, TestState.Operation1(TestState.Operation.Work("op1"))),
-                        Pair(2, TestState.Operation1(TestState.Operation.Work("op1")))
-                ),
-                mapOf(
-                        Pair(1, TestState.Operation1(TestState.Operation.Work("op1"))),
-                        Pair(2, TestState.Operation1(TestState.Operation.Finish))
-                ),
-                mapOf(
-                        Pair(1, TestState.Operation1(TestState.Operation.Work("op1"))),
-                        Pair(2, TestState.Operation2(TestState.Operation.Start))
-                ),
-                mapOf(
-                        Pair(1, TestState.Operation1(TestState.Operation.Finish)),
-                        Pair(2, TestState.Operation2(TestState.Operation.Start))
-                ),
-                mapOf(
-                        Pair(1, TestState.Operation1(TestState.Operation.Finish)),
-                        Pair(2, TestState.Operation2(TestState.Operation.Work("op2")))
-                ),
-                mapOf(Pair(2, TestState.Operation2(TestState.Operation.Work("op2")))),
-                mapOf(Pair(2, TestState.Operation2(TestState.Operation.Finish))),
-                mapOf()
-        ))
+            assertEquals(this.observer.values(), listOf(
+                    mapOf(),
+                    mapOf(Pair(1, TestState.Operation2(TestState.Operation.Start))),
+                    mapOf(Pair(1, TestState.Operation2(TestState.Operation.Work("op2")))),
+                    mapOf(
+                            Pair(1, TestState.Operation2(TestState.Operation.Work("op2"))),
+                            Pair(2, TestState.Operation1(TestState.Operation.Start))
+                    ),
+                    mapOf(
+                            Pair(1, TestState.Operation1(TestState.Operation.Start)),
+                            Pair(2, TestState.Operation1(TestState.Operation.Start))
+                    ),
+                    mapOf(
+                            Pair(1, TestState.Operation1(TestState.Operation.Start)),
+                            Pair(2, TestState.Operation1(TestState.Operation.Work("op1")))
+                    ),
+                    mapOf(
+                            Pair(1, TestState.Operation1(TestState.Operation.Work("op1"))),
+                            Pair(2, TestState.Operation1(TestState.Operation.Work("op1")))
+                    ),
+                    mapOf(
+                            Pair(1, TestState.Operation1(TestState.Operation.Work("op1"))),
+                            Pair(2, TestState.Operation1(TestState.Operation.Finish))
+                    ),
+                    mapOf(
+                            Pair(1, TestState.Operation1(TestState.Operation.Work("op1"))),
+                            Pair(2, TestState.Operation2(TestState.Operation.Start))
+                    ),
+                    mapOf(
+                            Pair(1, TestState.Operation1(TestState.Operation.Finish)),
+                            Pair(2, TestState.Operation2(TestState.Operation.Start))
+                    ),
+                    mapOf(
+                            Pair(1, TestState.Operation1(TestState.Operation.Finish)),
+                            Pair(2, TestState.Operation2(TestState.Operation.Work("op2")))
+                    ),
+                    mapOf(Pair(2, TestState.Operation2(TestState.Operation.Work("op2")))),
+                    mapOf(Pair(2, TestState.Operation2(TestState.Operation.Finish))),
+                    mapOf()
+            ))
+        }
     }
 }
