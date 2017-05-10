@@ -15,4 +15,4 @@ fun <Element> Observable<Element>.debug(id: String): Observable<Element> =
         .doOnError { log("$id -> error $it") }
         .doOnCompleted { log("$id -> completed") }
         .doOnSubscribe { log("$id -> subscribe") }
-        .doOnUnsubscribe { log("$id -> dispose") }
+        .doOnUnsubscribe { log("$id -> unsubscribe") }

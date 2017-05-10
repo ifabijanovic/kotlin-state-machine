@@ -40,13 +40,13 @@ typealias Driver<Element> = SharedSequence<DriverTraits.Companion, Element>
 // elementary
 
 fun <Element> SharedSequence.Companion.just(element: Element) =
-    Driver(Observable.just(element), DriverTraits.Companion)
+    Driver(Observable.just(element).subscribeOn(DriverTraits.scheduler), DriverTraits.Companion)
 
-fun <Element> SharedSequence.Companion.empty(): Driver<Element> =
-    Driver(Observable.empty(), DriverTraits.Companion)
+fun <Element> SharedSequence.Companion.empty() =
+    Driver(Observable.empty<Element>().subscribeOn(DriverTraits.scheduler), DriverTraits.Companion)
 
-fun <Element> SharedSequence.Companion.never(): Driver<Element> =
-    Driver(Observable.never(), DriverTraits.Companion)
+fun <Element> SharedSequence.Companion.never() =
+    Driver(Observable.never<Element>().subscribeOn(DriverTraits.scheduler), DriverTraits.Companion)
 
 // operations
 
