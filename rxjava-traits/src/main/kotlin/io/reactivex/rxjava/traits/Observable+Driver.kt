@@ -14,6 +14,6 @@ fun <Element> Observable<Element>.asDriver(onErrorDriveWith: (Throwable) -> Driv
     SharedSequence(this.onErrorResumeNext { onErrorDriveWith(it).source }
                        .observeOn(DriverTraits.scheduler), DriverTraits.Companion)
 
-fun <Element> Observable<Element>.asDriverIgnoreError(): Driver<Element> =
+fun <Element> Observable<Element>.asDriverCompleteOnError(): Driver<Element> =
     SharedSequence(this.onErrorResumeNext { Observable.empty() }
                        .observeOn(DriverTraits.scheduler), DriverTraits.Companion)

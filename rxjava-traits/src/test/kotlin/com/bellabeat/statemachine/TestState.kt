@@ -46,7 +46,7 @@ class TestStateFeedbackLoops(val scheduler: TestScheduler) {
                         is TestState.Error -> this.finish(0, key)
                     }
                 }.onErrorReturn { Command.Update(Pair(key, TestState.Error(it))) }
-                        .asDriverIgnoreError()
+                        .asDriverCompleteOnError()
             }
         }
     }

@@ -14,8 +14,11 @@ class DictionaryStateMachine<Key, State>(val effectsForKey: (Key) -> (Driver<Sta
   val state: Driver<Map<Key, State>>
   
   init {
-    val userCommandsFeedback: (Driver<Map<Key, State>>) -> Driver<Command<Key, State>> = { _ ->
-      this.commands.asDriverIgnoreError().map { Command.Update(it) }
+    val userCommandsFeedback: (Driver<Map<Key, State>>) -> SafeDriver<Command<Key, State>> = { _ ->
+      val r: Driver<Command<Key, State>> = this.commands.asDriverCompleteOnError().map {
+        Command.Update(it)
+      }
+      r.catchErrorAndComplete()
     }
     
     this.state = Driver.system(
@@ -24,7 +27,7 @@ class DictionaryStateMachine<Key, State>(val effectsForKey: (Key) -> (Driver<Sta
         userCommandsFeedback, perKeyFeedbackLoop(this.effectsForKey)
     )
     
-    this.stateSubscription = this.state.drive()
+    this.stateSubscription = this.state.catchErrorAndComplete().drive()
   }
   
   fun transition(to: Pair<Key, State>) {
@@ -77,7 +80,7 @@ private fun <Key, State> reduce(state: Map<Key, State>,
   }
 }
 
-private fun <Key, State> perKeyFeedbackLoop(effects: (Key) -> (Driver<State>) -> Driver<Command<Key, State>>): (Driver<Map<Key, State>>) -> Driver<Command<Key, State>> {
+private fun <Key, State> perKeyFeedbackLoop(effects: (Key) -> (Driver<State>) -> Driver<Command<Key, State>>): (Driver<Map<Key, State>>) -> SafeDriver<Command<Key, State>> {
   return { state ->
     val events = state.scanAndMaybeEmit(
         state = mapOf<Key, State>(),
@@ -115,9 +118,11 @@ private fun <Key, State> perKeyFeedbackLoop(effects: (Key) -> (Driver<State>) ->
               .distinctUntilChanged()
           
           return@flatMap effects(keyState.first)(statePerKey)
+              .catchErrorAndComplete()
               .asObservable()
-              .takeUntil(events.filter { it.isFinished(keyState.first) }.asObservable())
-              .asDriverIgnoreError()
+              .takeUntil(events.filter { it.isFinished(keyState.first) }.catchErrorAndComplete().asObservable())
+              .asDriverCompleteOnError()
         }
+        .catchErrorAndComplete()
   }
 }

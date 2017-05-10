@@ -27,11 +27,11 @@ fun <S, C> Observable<Any>.system(
 fun <S, C> SharedSequence.Companion.system(
     initialState: S,
     accumulator: (S, C) -> S,
-    vararg feedback: (Driver<S>) -> Driver<C>): Driver<S> {
+    vararg feedback: (Driver<S>) -> SafeDriver<C>): Driver<S> {
   return Driver.defer {
     val replaySubject: ReplaySubject<S> = ReplaySubject.createWithSize(1)
     
-    val command = Driver.merge(feedback.map { it(replaySubject.asDriverIgnoreError()) })
+    val command = Driver.merge(feedback.map { it(replaySubject.asDriverCompleteOnError()) })
     
     command.scan(initialState, accumulator)
         .doOnNext { replaySubject.onNext(it) }

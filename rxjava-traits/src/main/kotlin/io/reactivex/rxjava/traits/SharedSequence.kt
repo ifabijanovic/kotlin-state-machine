@@ -12,15 +12,28 @@ interface SharedSequenceTraits {
   fun <Element> share(source: Observable<Element>): Observable<Element>
 }
 
-class SharedSequence<out Traits : SharedSequenceTraits, Element>(source: Observable<Element>,
-                                                                 internal val traits: Traits) {
+open class SharedSequence<Traits : SharedSequenceTraits, Element>(source: Observable<Element>,
+                                                                  internal val traits: Traits) {
+  companion object {}
   
   internal val source: Observable<Element> = traits.share(source)
   
-  companion object
-  
-  fun asObservable() = source
+  class Safe<Traits : SharedSequenceTraits, Element>(source: Observable<Element>,
+                                                     traits: Traits) : SharedSequence<Traits, Element>(
+      source, traits) {
+    fun asObservable() = source
+  }
 }
+
+fun <Element, Traits : SharedSequenceTraits> SharedSequence<Traits, Element>.catchErrorAndComplete(): SharedSequence.Safe<Traits, Element> =
+    SharedSequence.Safe(this.source.onErrorResumeNext { Observable.empty() }, this.traits)
+
+fun <Element, Traits : SharedSequenceTraits> SharedSequence<Traits, Element>.catchError(
+    onErrorJustReturn: Element): SharedSequence.Safe<Traits, Element> =
+    SharedSequence.Safe(this.source.onErrorReturn { onErrorJustReturn }, this.traits)
+
+//fun <Element, Traits : SharedSequenceTraits, Result> SharedSequence<Traits, Element>.retryWithInitialInterval(initialInteval: Int): SharedSequence.SafeSharedSequence<Traits, Result> =
+//    SharedSequence.SafeSharedSequence(this.source.retry { initialInteval }, this.traits)
 
 fun <Element, Traits : SharedSequenceTraits, Result> SharedSequence<Traits, Element>.map(selector: (Element) -> Result): SharedSequence<Traits, Result> =
     SharedSequence(this.source.map(selector), this.traits)

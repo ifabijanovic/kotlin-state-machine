@@ -36,31 +36,37 @@ class DriverTraits {
 }
 
 typealias Driver<Element> = SharedSequence<DriverTraits.Companion, Element>
+typealias SafeDriver<Element> = SharedSequence.Safe<DriverTraits.Companion, Element>
 
 // elementary
 
-fun <Element> SharedSequence.Companion.just(element: Element) =
-    Driver(Observable.just(element).subscribeOn(DriverTraits.scheduler), DriverTraits.Companion)
+fun <Element> SharedSequence.Companion.just(element: Element): Driver<Element> =
+    SharedSequence(Observable.just(element).subscribeOn(DriverTraits.scheduler),
+                   DriverTraits.Companion)
 
-fun <Element> SharedSequence.Companion.empty() =
-    Driver(Observable.empty<Element>().subscribeOn(DriverTraits.scheduler), DriverTraits.Companion)
+fun <Element> SharedSequence.Companion.empty(): Driver<Element> =
+    SharedSequence(Observable.empty<Element>().subscribeOn(DriverTraits.scheduler),
+                   DriverTraits.Companion)
 
-fun <Element> SharedSequence.Companion.never() =
-    Driver(Observable.never<Element>().subscribeOn(DriverTraits.scheduler), DriverTraits.Companion)
+fun <Element> SharedSequence.Companion.never(): Driver<Element> =
+    SharedSequence(Observable.never<Element>().subscribeOn(DriverTraits.scheduler),
+                   DriverTraits.Companion)
 
 // operations
 
 fun <Element> SharedSequence.Companion.defer(factory: () -> Driver<Element>): Driver<Element> =
-    SharedSequence(Observable.defer { factory().source }, DriverTraits.Companion)
+    SharedSequence(Observable.defer { factory().source },
+                   DriverTraits.Companion)
 
 fun <Element> SharedSequence.Companion.merge(sources: Iterable<Driver<out Element>>): Driver<Element> =
-    SharedSequence(Observable.merge(sources.map { it.source }), DriverTraits.Companion)
+    SharedSequence(Observable.merge(sources.map { it.source }),
+                   DriverTraits.Companion)
 
-fun <Element> SharedSequence<DriverTraits.Companion, Element>.drive(onNext: (Element) -> Unit) =
+fun <Element> SharedSequence.Safe<DriverTraits.Companion, Element>.drive(onNext: (Element) -> Unit) =
     this.asObservable().subscribe(onNext)
 
-fun <Element> SharedSequence<DriverTraits.Companion, Element>.drive(observer: Observer<Element>) =
+fun <Element> SharedSequence.Safe<DriverTraits.Companion, Element>.drive(observer: Observer<Element>) =
     this.asObservable().subscribe(observer)
 
-fun <Element> SharedSequence<DriverTraits.Companion, Element>.drive() =
+fun <Element> SharedSequence.Safe<DriverTraits.Companion, Element>.drive() =
     this.asObservable().subscribe()

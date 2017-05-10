@@ -104,13 +104,15 @@ class TestDeviceStateFeedbackLoops(
         .connect(device)
         .switchMap { connectionResult ->
           state
+              .catchErrorAndComplete()
               .asObservable()
               .take(1)
               .flatMap { currentState ->
                 when (connectionResult) {
                   is ConnectionResult.PoweredOff -> Observable.just(Command.Update(Pair(device,
-                                                                                        currentState)))
-                  is ConnectionResult.Success -> state.asObservable().switchMap {
+                                                                                        TestDeviceState.PoweredOff(
+                                                                                            currentState))))
+                  is ConnectionResult.Success -> state.catchErrorAndComplete().asObservable().switchMap {
                     effects(Pair(it, connectionResult.connectedDevice))
                   }
                 }

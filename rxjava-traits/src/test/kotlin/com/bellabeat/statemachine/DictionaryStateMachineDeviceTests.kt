@@ -1,9 +1,6 @@
 package com.bellabeat.statemachine
 
-import io.reactivex.rxjava.traits.Driver
-import io.reactivex.rxjava.traits.DriverTraits
-import io.reactivex.rxjava.traits.drive
-import io.reactivex.rxjava.traits.empty
+import io.reactivex.rxjava.traits.*
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Before
@@ -51,7 +48,7 @@ class DictionaryStateMachineDeviceTests {
                                                                               syncData,
                                                                               this.syncSavePath,
                                                                               connect)::feedbackLoops)
-      this.stateMachine.state.drive(this.observer)
+      this.stateMachine.state.catchErrorAndComplete().drive(this.observer)
     })
   }
   
@@ -61,6 +58,19 @@ class DictionaryStateMachineDeviceTests {
         .delay(10, TimeUnit.SECONDS, this.scheduler)
         .doOnNext { this.connectionCount++ }
         .map { it }
+  }
+  
+  fun connectionWithBootup(device: Device): Observable<ConnectionResult> {
+    val poweredOff = Observable
+        .just(ConnectionResult.PoweredOff)
+        .delay(5, TimeUnit.SECONDS, this.scheduler)
+    
+    val success = Observable
+        .just(ConnectionResult.Success(ConnectedDevice(device)))
+        .delay(20, TimeUnit.SECONDS, this.scheduler)
+    
+    return Observable.merge(poweredOff, success)
+        .doOnSubscribe { this.connectionCount++ }
   }
   
   fun pair(device: Device) {
@@ -84,7 +94,7 @@ class DictionaryStateMachineDeviceTests {
       this.scheduler.createWorker().schedule({ this.sync(device) }, 300, TimeUnit.SECONDS)
       this.scheduler.advanceTimeBy(1000, TimeUnit.SECONDS)
       
-      assertEquals(this.observer.onNextEvents, listOf(
+      assertEquals(listOf(
           mapOf(),
           mapOf(Pair(device,
                      TestDeviceState.Start(TestDeviceState.Sync(TestDeviceState.SyncState.Read)))),
@@ -96,9 +106,41 @@ class DictionaryStateMachineDeviceTests {
                                                                          this.syncSavePath)))),
           mapOf(Pair(device, TestDeviceState.Sync(TestDeviceState.SyncState.Clear))),
           mapOf()
-      ))
+      ), this.observer.onNextEvents)
       
-      assertEquals(this.connectionCount, 1)
+      assertEquals(1, this.connectionCount)
+    }
+  }
+  
+  @Test
+  fun singleDeviceSingleOperationWithBootup() {
+    DriverTraits.schedulerIsNow({ this.scheduler }) {
+      this.makeStateMachine(this::connectionWithBootup)
+      val device = Device(1)
+      
+      assertEquals(0, this.connectionCount)
+      
+      this.scheduler.createWorker().schedule({ this.sync(device) }, 300, TimeUnit.SECONDS)
+      this.scheduler.advanceTimeBy(1000, TimeUnit.SECONDS)
+      
+      assertEquals(listOf(
+          mapOf(),
+          mapOf(Pair(device,
+                     TestDeviceState.Start(TestDeviceState.Sync(TestDeviceState.SyncState.Read)))),
+          mapOf(Pair(device, TestDeviceState.Sync(TestDeviceState.SyncState.Read))),
+          mapOf(Pair(device,
+                     TestDeviceState.PoweredOff(TestDeviceState.Sync(TestDeviceState.SyncState.Read)))),
+          mapOf(Pair(device, TestDeviceState.Sync(TestDeviceState.SyncState.Read))),
+          mapOf(Pair(device,
+                     TestDeviceState.Sync(TestDeviceState.SyncState.Process(this.syncData)))),
+          mapOf(Pair(device,
+                     TestDeviceState.Sync(TestDeviceState.SyncState.Save(this.syncData,
+                                                                         this.syncSavePath)))),
+          mapOf(Pair(device, TestDeviceState.Sync(TestDeviceState.SyncState.Clear))),
+          mapOf()
+      ), this.observer.onNextEvents)
+      
+      assertEquals(1, this.connectionCount)
     }
   }
 }

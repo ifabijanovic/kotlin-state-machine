@@ -1,9 +1,6 @@
 package com.bellabeat.statemachine
 
-import io.reactivex.rxjava.traits.Driver
-import io.reactivex.rxjava.traits.DriverTraits
-import io.reactivex.rxjava.traits.drive
-import io.reactivex.rxjava.traits.empty
+import io.reactivex.rxjava.traits.*
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Before
@@ -29,7 +26,7 @@ class DictionaryStateMachineTests {
     this.observer = TestSubscriber()
     DriverTraits.schedulerIsNow({ this.scheduler }) {
       this.stateMachine = DictionaryStateMachine(TestStateFeedbackLoops(this.scheduler)::feedbackLoops)
-      this.stateMachine.state.drive(this.observer)
+      this.stateMachine.state.catchErrorAndComplete().drive(this.observer)
     }
   }
   
@@ -53,13 +50,13 @@ class DictionaryStateMachineTests {
       this.scheduler.createWorker().schedule({ this.performOp1(1) }, 300, TimeUnit.SECONDS)
       this.scheduler.advanceTimeBy(1000, TimeUnit.SECONDS)
       
-      assertEquals(this.observer.onNextEvents, listOf(
+      assertEquals(listOf(
           mapOf(),
           mapOf(Pair(1, TestState.Operation1(TestState.Operation.Start))),
           mapOf(Pair(1, TestState.Operation1(TestState.Operation.Work("op1")))),
           mapOf(Pair(1, TestState.Operation1(TestState.Operation.Finish))),
           mapOf()
-      ))
+      ), this.observer.onNextEvents)
     }
   }
   
@@ -71,7 +68,7 @@ class DictionaryStateMachineTests {
       this.scheduler.createWorker().schedule({ this.performOp1(1) }, 500, TimeUnit.SECONDS)
       this.scheduler.advanceTimeBy(1000, TimeUnit.SECONDS)
       
-      assertEquals(this.observer.onNextEvents, listOf(
+      assertEquals(listOf(
           mapOf(),
           mapOf(Pair(1, TestState.Operation1(TestState.Operation.Start))),
           mapOf(Pair(1, TestState.Operation1(TestState.Operation.Work("op1")))),
@@ -85,7 +82,7 @@ class DictionaryStateMachineTests {
           mapOf(Pair(1, TestState.Operation1(TestState.Operation.Work("op1")))),
           mapOf(Pair(1, TestState.Operation1(TestState.Operation.Finish))),
           mapOf()
-      ))
+      ), this.observer.onNextEvents)
     }
   }
   
@@ -99,7 +96,7 @@ class DictionaryStateMachineTests {
       this.scheduler.createWorker().schedule({ this.performOp1(1) }, 700, TimeUnit.SECONDS)
       this.scheduler.advanceTimeBy(1000, TimeUnit.SECONDS)
       
-      assertEquals(this.observer.onNextEvents, listOf(
+      assertEquals(listOf(
           mapOf(),
           mapOf(Pair(1, TestState.Operation2(TestState.Operation.Start))),
           mapOf(Pair(1, TestState.Operation2(TestState.Operation.Work("op2")))),
@@ -121,7 +118,7 @@ class DictionaryStateMachineTests {
           mapOf(Pair(1, TestState.Operation1(TestState.Operation.Work("op1")))),
           mapOf(Pair(1, TestState.Operation1(TestState.Operation.Finish))),
           mapOf()
-      ))
+      ), this.observer.onNextEvents)
     }
   }
   
@@ -133,7 +130,7 @@ class DictionaryStateMachineTests {
       this.scheduler.createWorker().schedule({ this.performOp1(1) }, 340, TimeUnit.SECONDS)
       this.scheduler.advanceTimeBy(1000, TimeUnit.SECONDS)
       
-      assertEquals(this.observer.onNextEvents, listOf(
+      assertEquals(listOf(
           mapOf(),
           mapOf(Pair(1, TestState.Operation1(TestState.Operation.Start))),
           mapOf(Pair(1, TestState.Operation1(TestState.Operation.Work("op1")))),
@@ -143,7 +140,7 @@ class DictionaryStateMachineTests {
           mapOf(Pair(1, TestState.Operation1(TestState.Operation.Work("op1")))),
           mapOf(Pair(1, TestState.Operation1(TestState.Operation.Finish))),
           mapOf()
-      ))
+      ), this.observer.onNextEvents)
     }
   }
   
@@ -154,7 +151,7 @@ class DictionaryStateMachineTests {
       this.scheduler.createWorker().schedule({ this.performOp2(1) }, 320, TimeUnit.SECONDS)
       this.scheduler.advanceTimeBy(1000, TimeUnit.SECONDS)
       
-      assertEquals(this.observer.onNextEvents, listOf(
+      assertEquals(listOf(
           mapOf(),
           mapOf(Pair(1, TestState.Operation1(TestState.Operation.Start))),
           mapOf(Pair(1, TestState.Operation1(TestState.Operation.Work("op1")))),
@@ -162,7 +159,7 @@ class DictionaryStateMachineTests {
           mapOf(Pair(1, TestState.Operation2(TestState.Operation.Work("op2")))),
           mapOf(Pair(1, TestState.Operation2(TestState.Operation.Finish))),
           mapOf()
-      ))
+      ), this.observer.onNextEvents)
     }
   }
   
@@ -173,7 +170,7 @@ class DictionaryStateMachineTests {
       this.scheduler.createWorker().schedule({ this.performOp1(2) }, 400, TimeUnit.SECONDS)
       this.scheduler.advanceTimeBy(1000, TimeUnit.SECONDS)
       
-      assertEquals(this.observer.onNextEvents, listOf(
+      assertEquals(listOf(
           mapOf(),
           mapOf(Pair(1, TestState.Operation1(TestState.Operation.Start))),
           mapOf(Pair(1, TestState.Operation1(TestState.Operation.Work("op1")))),
@@ -183,7 +180,7 @@ class DictionaryStateMachineTests {
           mapOf(Pair(2, TestState.Operation1(TestState.Operation.Work("op1")))),
           mapOf(Pair(2, TestState.Operation1(TestState.Operation.Finish))),
           mapOf()
-      ))
+      ), this.observer.onNextEvents)
     }
   }
   
@@ -194,7 +191,7 @@ class DictionaryStateMachineTests {
       this.scheduler.createWorker().schedule({ this.performOp2(2) }, 400, TimeUnit.SECONDS)
       this.scheduler.advanceTimeBy(1000, TimeUnit.SECONDS)
       
-      assertEquals(this.observer.onNextEvents, listOf(
+      assertEquals(listOf(
           mapOf(),
           mapOf(Pair(1, TestState.Operation1(TestState.Operation.Start))),
           mapOf(Pair(1, TestState.Operation1(TestState.Operation.Work("op1")))),
@@ -204,7 +201,7 @@ class DictionaryStateMachineTests {
           mapOf(Pair(2, TestState.Operation2(TestState.Operation.Work("op2")))),
           mapOf(Pair(2, TestState.Operation2(TestState.Operation.Finish))),
           mapOf()
-      ))
+      ), this.observer.onNextEvents)
     }
   }
   
@@ -215,7 +212,7 @@ class DictionaryStateMachineTests {
       this.scheduler.createWorker().schedule({ this.performOp1(2) }, 310, TimeUnit.SECONDS)
       this.scheduler.advanceTimeBy(1000, TimeUnit.SECONDS)
       
-      assertEquals(this.observer.onNextEvents, listOf(
+      assertEquals(listOf(
           mapOf(),
           mapOf(Pair(1, TestState.Operation1(TestState.Operation.Start))),
           mapOf(Pair(1, TestState.Operation1(TestState.Operation.Work("op1")))),
@@ -234,7 +231,7 @@ class DictionaryStateMachineTests {
           mapOf(Pair(2, TestState.Operation1(TestState.Operation.Work("op1")))),
           mapOf(Pair(2, TestState.Operation1(TestState.Operation.Finish))),
           mapOf()
-      ))
+      ), this.observer.onNextEvents)
     }
   }
   
@@ -245,7 +242,7 @@ class DictionaryStateMachineTests {
       this.scheduler.createWorker().schedule({ this.performOp1(2) }, 310, TimeUnit.SECONDS)
       this.scheduler.advanceTimeBy(1000, TimeUnit.SECONDS)
       
-      assertEquals(this.observer.onNextEvents, listOf(
+      assertEquals(listOf(
           mapOf(),
           mapOf(Pair(1, TestState.Operation2(TestState.Operation.Start))),
           mapOf(Pair(1, TestState.Operation2(TestState.Operation.Work("op2")))),
@@ -264,7 +261,7 @@ class DictionaryStateMachineTests {
           mapOf(Pair(2, TestState.Operation1(TestState.Operation.Work("op1")))),
           mapOf(Pair(2, TestState.Operation1(TestState.Operation.Finish))),
           mapOf()
-      ))
+      ), this.observer.onNextEvents)
     }
   }
   
@@ -277,7 +274,7 @@ class DictionaryStateMachineTests {
       this.scheduler.createWorker().schedule({ this.performOp2(2) }, 337, TimeUnit.SECONDS)
       this.scheduler.advanceTimeBy(1000, TimeUnit.SECONDS)
       
-      assertEquals(this.observer.onNextEvents, listOf(
+      assertEquals(listOf(
           mapOf(),
           mapOf(Pair(1, TestState.Operation2(TestState.Operation.Start))),
           mapOf(Pair(1, TestState.Operation2(TestState.Operation.Work("op2")))),
@@ -316,7 +313,7 @@ class DictionaryStateMachineTests {
           mapOf(Pair(2, TestState.Operation2(TestState.Operation.Work("op2")))),
           mapOf(Pair(2, TestState.Operation2(TestState.Operation.Finish))),
           mapOf()
-      ))
+      ), this.observer.onNextEvents)
     }
   }
 }
