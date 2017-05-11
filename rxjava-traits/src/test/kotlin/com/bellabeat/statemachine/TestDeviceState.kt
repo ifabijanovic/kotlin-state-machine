@@ -1,9 +1,10 @@
 package com.bellabeat.statemachine
 
+import common.Event.Next
+import common.createColdObservable
 import io.reactivex.rxjava.traits.*
 import rx.Observable
 import rx.schedulers.TestScheduler
-import java.util.concurrent.TimeUnit
 
 /**
  * Created by Ivan Fabijanovic on 07/05/2017.
@@ -95,7 +96,6 @@ class TestDeviceStateFeedbackLoops(
                   Driver.just(Command.Update(Pair(key, TestDeviceState.Error(it))))
                 })
           }
-          .debug("feedbackloops")
     }
   }
   
@@ -146,10 +146,12 @@ class TestDeviceStateFeedbackLoops(
   
   private fun update(period: Long, key: Device,
                      state: TestDeviceState): Observable<Command<Device, TestDeviceState>> =
-      Observable.timer(period, TimeUnit.SECONDS, this.scheduler)
-          .map { Command.Update(Pair(key, state)) }
+      scheduler.createColdObservable<Command<Device, TestDeviceState>>(
+          Next(period, Command.Update(Pair(key, state)))
+      )
   
   private fun finish(period: Long, key: Device): Observable<Command<Device, TestDeviceState>> =
-      Observable.timer(period, TimeUnit.SECONDS, this.scheduler)
-          .map { Command.Finish<Device, TestDeviceState>(key) }
+      scheduler.createColdObservable<Command<Device, TestDeviceState>>(
+          Next(period, Command.Finish<Device, TestDeviceState>(key))
+      )
 }

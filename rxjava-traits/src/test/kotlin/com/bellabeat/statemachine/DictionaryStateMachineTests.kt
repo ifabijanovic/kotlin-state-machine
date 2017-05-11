@@ -1,5 +1,7 @@
 package com.bellabeat.statemachine
 
+import common.advanceTimeBy
+import common.scheduleAt
 import io.reactivex.rxjava.traits.*
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -7,7 +9,6 @@ import org.junit.Before
 import org.junit.Test
 import rx.observers.TestSubscriber
 import rx.schedulers.TestScheduler
-import java.util.concurrent.TimeUnit
 
 /**
  * Created by juraj on 09/05/2017.
@@ -47,8 +48,9 @@ class DictionaryStateMachineTests {
   @Test
   fun singleKeySingleOperation() {
     DriverTraits.schedulerIsNow({ this.scheduler }) {
-      this.scheduler.createWorker().schedule({ this.performOp1(1) }, 300, TimeUnit.SECONDS)
-      this.scheduler.advanceTimeBy(1000, TimeUnit.SECONDS)
+      
+      this.scheduler.scheduleAt(300) { this.performOp1(1) }
+      this.scheduler.advanceTimeBy(1000)
       
       assertEquals(listOf(
           mapOf(),
@@ -63,10 +65,12 @@ class DictionaryStateMachineTests {
   @Test
   fun singleKeyMultipleSameSequentialOperations() {
     DriverTraits.schedulerIsNow({ this.scheduler }) {
-      this.scheduler.createWorker().schedule({ this.performOp1(1) }, 300, TimeUnit.SECONDS)
-      this.scheduler.createWorker().schedule({ this.performOp1(1) }, 400, TimeUnit.SECONDS)
-      this.scheduler.createWorker().schedule({ this.performOp1(1) }, 500, TimeUnit.SECONDS)
-      this.scheduler.advanceTimeBy(1000, TimeUnit.SECONDS)
+      
+      this.scheduler.scheduleAt(300) { this.performOp1(1) }
+      this.scheduler.scheduleAt(400) { this.performOp1(1) }
+      this.scheduler.scheduleAt(500) { this.performOp1(1) }
+      
+      this.scheduler.advanceTimeBy(1000)
       
       assertEquals(listOf(
           mapOf(),
@@ -89,12 +93,14 @@ class DictionaryStateMachineTests {
   @Test
   fun singleKeyMultipleDifferentSequentialOperations() {
     DriverTraits.schedulerIsNow({ this.scheduler }) {
-      this.scheduler.createWorker().schedule({ this.performOp2(1) }, 300, TimeUnit.SECONDS)
-      this.scheduler.createWorker().schedule({ this.performOp2(1) }, 400, TimeUnit.SECONDS)
-      this.scheduler.createWorker().schedule({ this.performOp1(1) }, 500, TimeUnit.SECONDS)
-      this.scheduler.createWorker().schedule({ this.performOp2(1) }, 600, TimeUnit.SECONDS)
-      this.scheduler.createWorker().schedule({ this.performOp1(1) }, 700, TimeUnit.SECONDS)
-      this.scheduler.advanceTimeBy(1000, TimeUnit.SECONDS)
+      
+      this.scheduler.scheduleAt(300) { this.performOp2(1) }
+      this.scheduler.scheduleAt(400) { this.performOp2(1) }
+      this.scheduler.scheduleAt(500) { this.performOp1(1) }
+      this.scheduler.scheduleAt(600) { this.performOp2(1) }
+      this.scheduler.scheduleAt(700) { this.performOp1(1) }
+      
+      this.scheduler.advanceTimeBy(1000)
       
       assertEquals(listOf(
           mapOf(),
@@ -125,10 +131,12 @@ class DictionaryStateMachineTests {
   @Test
   fun singleKeyInterruptOperationWithSameOperation() {
     DriverTraits.schedulerIsNow({ this.scheduler }) {
-      this.scheduler.createWorker().schedule({ this.performOp1(1) }, 300, TimeUnit.SECONDS)
-      this.scheduler.createWorker().schedule({ this.performOp1(1) }, 320, TimeUnit.SECONDS)
-      this.scheduler.createWorker().schedule({ this.performOp1(1) }, 340, TimeUnit.SECONDS)
-      this.scheduler.advanceTimeBy(1000, TimeUnit.SECONDS)
+      
+      this.scheduler.scheduleAt(300) { this.performOp1(1) }
+      this.scheduler.scheduleAt(320) { this.performOp1(1) }
+      this.scheduler.scheduleAt(340) { this.performOp1(1) }
+      
+      this.scheduler.advanceTimeBy(1000)
       
       assertEquals(listOf(
           mapOf(),
@@ -147,9 +155,11 @@ class DictionaryStateMachineTests {
   @Test
   fun singleKeyInterruptOperationWithDifferentOperation() {
     DriverTraits.schedulerIsNow({ this.scheduler }) {
-      this.scheduler.createWorker().schedule({ this.performOp1(1) }, 300, TimeUnit.SECONDS)
-      this.scheduler.createWorker().schedule({ this.performOp2(1) }, 320, TimeUnit.SECONDS)
-      this.scheduler.advanceTimeBy(1000, TimeUnit.SECONDS)
+      
+      this.scheduler.scheduleAt(300) { this.performOp1(1) }
+      this.scheduler.scheduleAt(320) { this.performOp2(1) }
+      
+      this.scheduler.advanceTimeBy(1000)
       
       assertEquals(listOf(
           mapOf(),
@@ -166,9 +176,11 @@ class DictionaryStateMachineTests {
   @Test
   fun twoKeysSameOperationSequential() {
     DriverTraits.schedulerIsNow({ this.scheduler }) {
-      this.scheduler.createWorker().schedule({ this.performOp1(1) }, 300, TimeUnit.SECONDS)
-      this.scheduler.createWorker().schedule({ this.performOp1(2) }, 400, TimeUnit.SECONDS)
-      this.scheduler.advanceTimeBy(1000, TimeUnit.SECONDS)
+      
+      this.scheduler.scheduleAt(300) { this.performOp1(1) }
+      this.scheduler.scheduleAt(400) { this.performOp1(2) }
+      
+      this.scheduler.advanceTimeBy(1000)
       
       assertEquals(listOf(
           mapOf(),
@@ -187,9 +199,11 @@ class DictionaryStateMachineTests {
   @Test
   fun twoKeysDifferentOperationSequential() {
     DriverTraits.schedulerIsNow({ this.scheduler }) {
-      this.scheduler.createWorker().schedule({ this.performOp1(1) }, 300, TimeUnit.SECONDS)
-      this.scheduler.createWorker().schedule({ this.performOp2(2) }, 400, TimeUnit.SECONDS)
-      this.scheduler.advanceTimeBy(1000, TimeUnit.SECONDS)
+      
+      this.scheduler.scheduleAt(300) { this.performOp1(1) }
+      this.scheduler.scheduleAt(400) { this.performOp2(2) }
+      
+      this.scheduler.advanceTimeBy(1000)
       
       assertEquals(listOf(
           mapOf(),
@@ -208,9 +222,11 @@ class DictionaryStateMachineTests {
   @Test
   fun twoKeysSameOperationOverlapping() {
     DriverTraits.schedulerIsNow({ this.scheduler }) {
-      this.scheduler.createWorker().schedule({ this.performOp1(1) }, 300, TimeUnit.SECONDS)
-      this.scheduler.createWorker().schedule({ this.performOp1(2) }, 310, TimeUnit.SECONDS)
-      this.scheduler.advanceTimeBy(1000, TimeUnit.SECONDS)
+      
+      this.scheduler.scheduleAt(300) { this.performOp1(1) }
+      this.scheduler.scheduleAt(310) { this.performOp1(2) }
+      
+      this.scheduler.advanceTimeBy(1000)
       
       assertEquals(listOf(
           mapOf(),
@@ -238,9 +254,11 @@ class DictionaryStateMachineTests {
   @Test
   fun twoKeysDifferentOperationOverlapping() {
     DriverTraits.schedulerIsNow({ this.scheduler }) {
-      this.scheduler.createWorker().schedule({ this.performOp2(1) }, 300, TimeUnit.SECONDS)
-      this.scheduler.createWorker().schedule({ this.performOp1(2) }, 310, TimeUnit.SECONDS)
-      this.scheduler.advanceTimeBy(1000, TimeUnit.SECONDS)
+      
+      this.scheduler.scheduleAt(300) { this.performOp2(1) }
+      this.scheduler.scheduleAt(310) { this.performOp1(2) }
+      
+      this.scheduler.advanceTimeBy(1000)
       
       assertEquals(listOf(
           mapOf(),
@@ -268,11 +286,13 @@ class DictionaryStateMachineTests {
   @Test
   fun twoKeysDifferentOperationOverlappingWithInterrupts() {
     DriverTraits.schedulerIsNow({ this.scheduler }) {
-      this.scheduler.createWorker().schedule({ this.performOp2(1) }, 300, TimeUnit.SECONDS)
-      this.scheduler.createWorker().schedule({ this.performOp1(2) }, 310, TimeUnit.SECONDS)
-      this.scheduler.createWorker().schedule({ this.performOp1(1) }, 313, TimeUnit.SECONDS)
-      this.scheduler.createWorker().schedule({ this.performOp2(2) }, 337, TimeUnit.SECONDS)
-      this.scheduler.advanceTimeBy(1000, TimeUnit.SECONDS)
+      
+      this.scheduler.scheduleAt(300) { this.performOp2(1) }
+      this.scheduler.scheduleAt(310) { this.performOp1(2) }
+      this.scheduler.scheduleAt(313) { this.performOp1(1) }
+      this.scheduler.scheduleAt(337) { this.performOp2(2) }
+      
+      this.scheduler.advanceTimeBy(1000)
       
       assertEquals(listOf(
           mapOf(),

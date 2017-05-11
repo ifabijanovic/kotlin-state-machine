@@ -1,5 +1,10 @@
 package com.bellabeat.statemachine
 
+import common.Event.Error
+import common.Event.Next
+import common.advanceTimeBy
+import common.createColdObservable
+import common.scheduleAt
 import io.reactivex.rxjava.traits.*
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -8,7 +13,6 @@ import org.junit.Test
 import rx.Observable
 import rx.observers.TestSubscriber
 import rx.schedulers.TestScheduler
-import java.util.concurrent.TimeUnit
 
 /**
  * Created by Ivan Fabijanovic on 07/05/2017.
@@ -51,44 +55,32 @@ class DictionaryStateMachineDeviceTests {
   }
   
   fun perfectConnection(device: Device): Observable<ConnectionResult> =
-      Observable.timer(10, TimeUnit.SECONDS, this.scheduler)
-          .map <ConnectionResult> { ConnectionResult.Success(ConnectedDevice(device)) }
+      scheduler.createColdObservable<ConnectionResult>(
+          Next(10, ConnectionResult.Success(ConnectedDevice(device)))
+      )
           .doOnSubscribe { this.connectionCount++ }
   
-  fun connectionWithBootup(device: Device): Observable<ConnectionResult> {
-    val poweredOff = Observable.timer(5, TimeUnit.SECONDS, this.scheduler)
-        .map { ConnectionResult.PoweredOff }
-    
-    val success = Observable.timer(20, TimeUnit.SECONDS, this.scheduler)
-        .map { ConnectionResult.Success(ConnectedDevice(device)) }
-    
-    return Observable.merge(poweredOff, success)
-        .doOnSubscribe { this.connectionCount++ }
-  }
+  fun connectionWithBootup(device: Device): Observable<ConnectionResult> =
+      scheduler.createColdObservable<ConnectionResult>(
+          Next(5, ConnectionResult.PoweredOff),
+          Next(20, ConnectionResult.Success(ConnectedDevice(device)))
+      )
+          .doOnSubscribe { this.connectionCount++ }
   
-  fun connectionWithError(device: Device): Observable<ConnectionResult> {
-    val success = Observable.timer(10, TimeUnit.SECONDS, this.scheduler)
-        .map { ConnectionResult.Success(ConnectedDevice(device)) }
-    
-    val error = Observable.timer(50, TimeUnit.SECONDS, this.scheduler)
-        .map<ConnectionResult> { throw TestDeviceStateError.Connection }
-    
-    return Observable.merge(success, error)
-        .doOnSubscribe { this.connectionCount++ }
-  }
+  fun connectionWithError(device: Device): Observable<ConnectionResult> =
+      scheduler.createColdObservable<ConnectionResult>(
+          Next(10, ConnectionResult.Success(ConnectedDevice(device))),
+          Error(50, TestDeviceStateError.Connection)
+      )
+          .doOnSubscribe { this.connectionCount++ }
   
   fun connectionWithInterrupt(device: Device): Observable<ConnectionResult> {
     val connectedDevice = ConnectedDevice(device)
-    val success1 = Observable.timer(10, TimeUnit.SECONDS, this.scheduler)
-        .map { ConnectionResult.Success(connectedDevice) }
-    
-    val poweredOff = Observable.timer(40, TimeUnit.SECONDS, this.scheduler)
-        .map { ConnectionResult.PoweredOff }
-    
-    val success2 = Observable.timer(60, TimeUnit.SECONDS, this.scheduler)
-        .map { ConnectionResult.Success(connectedDevice) }
-    
-    return Observable.merge(success1, poweredOff, success2)
+    return scheduler.createColdObservable<ConnectionResult>(
+        Next(10, ConnectionResult.Success(connectedDevice)),
+        Next(40, ConnectionResult.PoweredOff),
+        Next(60, ConnectionResult.Success(connectedDevice))
+    )
         .doOnSubscribe { this.connectionCount++ }
   }
   
@@ -110,8 +102,8 @@ class DictionaryStateMachineDeviceTests {
       
       assertEquals(this.connectionCount, 0)
       
-      this.scheduler.createWorker().schedule({ this.sync(device) }, 300, TimeUnit.SECONDS)
-      this.scheduler.advanceTimeBy(1000, TimeUnit.SECONDS)
+      this.scheduler.scheduleAt(300) { this.sync(device) }
+      this.scheduler.advanceTimeBy(1000)
       
       assertEquals(listOf(
           mapOf(),
@@ -136,8 +128,8 @@ class DictionaryStateMachineDeviceTests {
       
       assertEquals(0, this.connectionCount)
       
-      this.scheduler.createWorker().schedule({ this.sync(device) }, 300, TimeUnit.SECONDS)
-      this.scheduler.advanceTimeBy(1000, TimeUnit.SECONDS)
+      this.scheduler.scheduleAt(300) { this.sync(device) }
+      this.scheduler.advanceTimeBy(1000)
       
       assertEquals(listOf(
           mapOf(),
@@ -164,8 +156,8 @@ class DictionaryStateMachineDeviceTests {
       
       assertEquals(0, this.connectionCount)
       
-      this.scheduler.createWorker().schedule({ this.sync(device) }, 300, TimeUnit.SECONDS)
-      this.scheduler.advanceTimeBy(1000, TimeUnit.SECONDS)
+      this.scheduler.scheduleAt(300) { this.sync(device) }
+      this.scheduler.advanceTimeBy(1000)
       
       assertEquals(listOf(
           mapOf(),
@@ -188,8 +180,8 @@ class DictionaryStateMachineDeviceTests {
       
       assertEquals(0, this.connectionCount)
       
-      this.scheduler.createWorker().schedule({ this.sync(device) }, 300, TimeUnit.SECONDS)
-      this.scheduler.advanceTimeBy(1000, TimeUnit.SECONDS)
+      this.scheduler.scheduleAt(300) { this.sync(device) }
+      this.scheduler.advanceTimeBy(1000)
       
       assertEquals(listOf(
           mapOf(),

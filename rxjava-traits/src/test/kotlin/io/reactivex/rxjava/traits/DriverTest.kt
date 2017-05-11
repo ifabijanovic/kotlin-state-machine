@@ -1,5 +1,7 @@
 package io.reactivex.rxjava.traits
 
+import common.advanceTimeBy
+import common.scheduleAt
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Before
@@ -8,7 +10,6 @@ import rx.Observable
 import rx.observers.TestSubscriber
 import rx.schedulers.TestScheduler
 import java.util.*
-import java.util.concurrent.TimeUnit
 
 /**
  * Created by juraj on 10/05/2017.
@@ -37,18 +38,17 @@ class DriverTest {
   fun driverCompleteOnError() {
     DriverTraits.schedulerIsNow({ this.scheduler }) {
       
-      this.scheduler.createWorker()
-          .schedule({
-                      observableRange()
-                          .map {
-                            if (it == 5) throw Exception()
-                            else it
-                          }
-                          .asDriverCompleteOnError()
-                          .catchErrorAndComplete()
-                          .drive(observer)
-                    })
-      this.scheduler.advanceTimeBy(10, TimeUnit.SECONDS)
+      this.scheduler.scheduleAt(0) {
+        observableRange()
+            .map {
+              if (it == 5) throw Exception()
+              else it
+            }
+            .asDriverCompleteOnError()
+            .catchErrorAndComplete()
+            .drive(observer)
+      }
+      this.scheduler.advanceTimeBy(10)
       
       assertEquals(arrayListOf(1, 2, 3, 4), observer.onNextEvents)
     }
@@ -61,18 +61,17 @@ class DriverTest {
       
       val returnOnError = 7
       
-      this.scheduler.createWorker()
-          .schedule({
-                      observableRange()
-                          .map {
-                            if (it == 5) throw Exception()
-                            else it
-                          }
-                          .asDriver(returnOnError)
-                          .catchErrorAndComplete()
-                          .drive(observer)
-                    })
-      this.scheduler.advanceTimeBy(10, TimeUnit.SECONDS)
+      this.scheduler.scheduleAt(0) {
+        observableRange()
+            .map {
+              if (it == 5) throw Exception()
+              else it
+            }
+            .asDriver(returnOnError)
+            .catchErrorAndComplete()
+            .drive(observer)
+      }
+      this.scheduler.advanceTimeBy(10)
       
       assertEquals(arrayListOf(1, 2, 3, 4, 7), observer.onNextEvents)
     }
@@ -82,18 +81,17 @@ class DriverTest {
   fun driverOnErrorDriveWith() {
     DriverTraits.schedulerIsNow({ this.scheduler }) {
       
-      this.scheduler.createWorker()
-          .schedule({
-                      observableRange()
-                          .map {
-                            if (it == 5) throw Exception()
-                            else it
-                          }
-                          .asDriver(onErrorDriveWith = { observableRange().asDriverCompleteOnError() })
-                          .catchErrorAndComplete()
-                          .drive(observer)
-                    })
-      this.scheduler.advanceTimeBy(10, TimeUnit.SECONDS)
+      this.scheduler.scheduleAt(0) {
+        observableRange()
+            .map {
+              if (it == 5) throw Exception()
+              else it
+            }
+            .asDriver(onErrorDriveWith = { observableRange().asDriverCompleteOnError() })
+            .catchErrorAndComplete()
+            .drive(observer)
+      }
+      this.scheduler.advanceTimeBy(10)
       
       assertEquals(arrayListOf(1, 2, 3, 4, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10), observer.onNextEvents)
     }
@@ -103,13 +101,12 @@ class DriverTest {
   fun defer() {
     DriverTraits.schedulerIsNow({ this.scheduler }) {
       
-      this.scheduler.createWorker()
-          .schedule({
-                      Driver.defer { observableRange().asDriverCompleteOnError() }
-                          .catchErrorAndComplete()
-                          .drive(observer)
-                    })
-      this.scheduler.advanceTimeBy(10, TimeUnit.SECONDS)
+      this.scheduler.scheduleAt(0) {
+        Driver.defer { observableRange().asDriverCompleteOnError() }
+            .catchErrorAndComplete()
+            .drive(observer)
+      }
+      this.scheduler.advanceTimeBy(10)
       
       assertEquals(arrayListOf(1, 2, 3, 4, 5, 6, 7, 8, 9, 10), observer.onNextEvents)
     }
@@ -119,17 +116,16 @@ class DriverTest {
   fun deferOnErrorComplete() {
     DriverTraits.schedulerIsNow({ this.scheduler }) {
       
-      this.scheduler.createWorker()
-          .schedule({
-                      Driver.defer {
-                        if (true) throw Exception()
-                        else
-                          observableRange().asDriverCompleteOnError()
-                      }
-                          .catchErrorAndComplete()
-                          .drive(observer)
-                    })
-      this.scheduler.advanceTimeBy(10, TimeUnit.SECONDS)
+      this.scheduler.scheduleAt(0) {
+        Driver.defer {
+          if (true) throw Exception()
+          else
+            observableRange().asDriverCompleteOnError()
+        }
+            .catchErrorAndComplete()
+            .drive(observer)
+      }
+      this.scheduler.advanceTimeBy(10)
       
       assertEquals(ArrayList<Int>(0), observer.onNextEvents)
     }
@@ -141,17 +137,16 @@ class DriverTest {
       
       val returnOnError = 7
       
-      this.scheduler.createWorker()
-          .schedule({
-                      Driver.defer {
-                        if (true) throw Exception()
-                        else
-                          observableRange().asDriverCompleteOnError()
-                      }
-                          .catchError(returnOnError)
-                          .drive(observer)
-                    })
-      this.scheduler.advanceTimeBy(10, TimeUnit.SECONDS)
+      this.scheduler.scheduleAt(0) {
+        Driver.defer {
+          if (true) throw Exception()
+          else
+            observableRange().asDriverCompleteOnError()
+        }
+            .catchError(returnOnError)
+            .drive(observer)
+      }
+      this.scheduler.advanceTimeBy(10)
       
       assertEquals(arrayListOf(returnOnError), observer.onNextEvents)
     }
@@ -161,14 +156,13 @@ class DriverTest {
   fun catchErrorAndCompleteWithoutError() {
     DriverTraits.schedulerIsNow({ this.scheduler }) {
       
-      this.scheduler.createWorker()
-          .schedule({
-                      observableRange()
-                          .asDriverCompleteOnError()
-                          .catchErrorAndComplete()
-                          .drive(observer)
-                    })
-      this.scheduler.advanceTimeBy(10, TimeUnit.SECONDS)
+      this.scheduler.scheduleAt(0) {
+        observableRange()
+            .asDriverCompleteOnError()
+            .catchErrorAndComplete()
+            .drive(observer)
+      }
+      this.scheduler.advanceTimeBy(10)
       
       assertEquals(arrayListOf(1, 2, 3, 4, 5, 6, 7, 8, 9, 10), observer.onNextEvents)
     }
@@ -178,19 +172,18 @@ class DriverTest {
   fun catchErrorAndComplete() {
     DriverTraits.schedulerIsNow({ this.scheduler }) {
       
-      this.scheduler.createWorker()
-          .schedule({
-                      observableRange()
-                          .asDriverCompleteOnError()
-                          .map {
-                            if (it == 5)
-                              throw Exception()
-                            else it
-                          }
-                          .catchErrorAndComplete()
-                          .drive(observer)
-                    })
-      this.scheduler.advanceTimeBy(10, TimeUnit.SECONDS)
+      this.scheduler.scheduleAt(0) {
+        observableRange()
+            .asDriverCompleteOnError()
+            .map {
+              if (it == 5)
+                throw Exception()
+              else it
+            }
+            .catchErrorAndComplete()
+            .drive(observer)
+      }
+      this.scheduler.advanceTimeBy(10)
       assertEquals(arrayListOf(1, 2, 3, 4), observer.onNextEvents)
     }
   }
@@ -201,19 +194,18 @@ class DriverTest {
       
       val returnOnError = 7
       
-      this.scheduler.createWorker()
-          .schedule({
-                      observableRange()
-                          .asDriverCompleteOnError()
-                          .map {
-                            if (it == 5)
-                              throw Exception()
-                            else it
-                          }
-                          .catchError(returnOnError)
-                          .drive(observer)
-                    })
-      this.scheduler.advanceTimeBy(10, TimeUnit.SECONDS)
+      this.scheduler.scheduleAt(0) {
+        observableRange()
+            .asDriverCompleteOnError()
+            .map {
+              if (it == 5)
+                throw Exception()
+              else it
+            }
+            .catchError(returnOnError)
+            .drive(observer)
+      }
+      this.scheduler.advanceTimeBy(10)
       
       assertEquals(arrayListOf(1, 2, 3, 4, 7), observer.onNextEvents)
     }
