@@ -32,8 +32,8 @@ fun <Element, Traits : SharedSequenceTraits> SharedSequence<Traits, Element>.cat
     onErrorJustReturn: Element): SharedSequence.Safe<Traits, Element> =
     SharedSequence.Safe(this.source.onErrorReturn { onErrorJustReturn }, this.traits)
 
-//fun <Element, Traits : SharedSequenceTraits, Result> SharedSequence<Traits, Element>.retryWithInitialInterval(initialInteval: Int): SharedSequence.SafeSharedSequence<Traits, Result> =
-//    SharedSequence.SafeSharedSequence(this.source.retry { initialInteval }, this.traits)
+//fun <Element, Traits : SharedSequenceTraits> SharedSequence<Traits, Element>.retryWith(): SharedSequence.Safe<Traits, Element> =
+//    SharedSequence.Safe(this.source.retry { initialInteval }, this.traits)
 
 fun <Element, Traits : SharedSequenceTraits, Result> SharedSequence<Traits, Element>.map(selector: (Element) -> Result): SharedSequence<Traits, Result> =
     SharedSequence(this.source.map(selector), this.traits)
