@@ -62,7 +62,7 @@ class DictionaryStateMachineDeviceTests {
     val success = Observable.timer(20, TimeUnit.SECONDS, this.scheduler)
         .map { ConnectionResult.Success(ConnectedDevice(device)) }
     
-    return Observable.concat(poweredOff, success)
+    return Observable.merge(poweredOff, success)
         .doOnSubscribe { this.connectionCount++ }
   }
   
@@ -73,7 +73,22 @@ class DictionaryStateMachineDeviceTests {
     val error = Observable.timer(50, TimeUnit.SECONDS, this.scheduler)
         .map<ConnectionResult> { throw TestDeviceStateError.Connection }
     
-    return Observable.concat(success, error)
+    return Observable.merge(success, error)
+        .doOnSubscribe { this.connectionCount++ }
+  }
+  
+  fun connectionWithInterrupt(device: Device): Observable<ConnectionResult> {
+    val connectedDevice = ConnectedDevice(device)
+    val success1 = Observable.timer(10, TimeUnit.SECONDS, this.scheduler)
+        .map { ConnectionResult.Success(connectedDevice) }
+    
+    val poweredOff = Observable.timer(40, TimeUnit.SECONDS, this.scheduler)
+        .map { ConnectionResult.PoweredOff }
+    
+    val success2 = Observable.timer(60, TimeUnit.SECONDS, this.scheduler)
+        .map { ConnectionResult.Success(connectedDevice) }
+    
+    return Observable.merge(success1, poweredOff, success2)
         .doOnSubscribe { this.connectionCount++ }
   }
   
@@ -158,6 +173,35 @@ class DictionaryStateMachineDeviceTests {
           mapOf(Pair(device, TestDeviceState.Sync(SyncState.Read))),
           mapOf(Pair(device, TestDeviceState.Sync(SyncState.Process(this.syncData)))),
           mapOf(Pair(device, TestDeviceState.Error(TestDeviceStateError.Connection))),
+          mapOf()
+      ), this.observer.onNextEvents)
+      
+      assertEquals(1, this.connectionCount)
+    }
+  }
+  
+  @Test
+  fun singleDeviceSingleOperationWithConnectionInterrupt() {
+    DriverTraits.schedulerIsNow({ this.scheduler }) {
+      this.makeStateMachine(this::connectionWithInterrupt)
+      val device = Device(1)
+      
+      assertEquals(0, this.connectionCount)
+      
+      this.scheduler.createWorker().schedule({ this.sync(device) }, 300, TimeUnit.SECONDS)
+      this.scheduler.advanceTimeBy(1000, TimeUnit.SECONDS)
+      
+      assertEquals(listOf(
+          mapOf(),
+          mapOf(Pair(device, TestDeviceState.Start(TestDeviceState.Sync(SyncState.Read)))),
+          mapOf(Pair(device, TestDeviceState.Sync(SyncState.Read))),
+          mapOf(Pair(device, TestDeviceState.Sync(SyncState.Process(this.syncData)))),
+          mapOf(Pair(device,
+                     TestDeviceState.PoweredOff(TestDeviceState.Sync(SyncState.Process(this.syncData))))),
+          mapOf(Pair(device, TestDeviceState.Sync(SyncState.Process(this.syncData)))),
+          mapOf(Pair(device,
+                     TestDeviceState.Sync(SyncState.Save(this.syncData, this.syncSavePath)))),
+          mapOf(Pair(device, TestDeviceState.Sync(SyncState.Clear))),
           mapOf()
       ), this.observer.onNextEvents)
       
