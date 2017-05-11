@@ -14,11 +14,12 @@ class DictionaryStateMachine<Key, State>(val effectsForKey: (Key) -> (Driver<Sta
   val state: Driver<Map<Key, State>>
   
   init {
-    val userCommandsFeedback: (Driver<Map<Key, State>>) -> SafeDriver<Command<Key, State>> = { _ ->
-      val r: Driver<Command<Key, State>> = this.commands.asDriverCompleteOnError().map {
+    val userCommandsFeedback: (Driver<Map<Key, State>>) -> SafeDriver<Command<Key, State>> = {
+      this.commands.asObservable().map<Command<Key, State>> {
         Command.Update(it)
       }
-      r.catchErrorAndComplete()
+          .asDriverCompleteOnError()
+          .catchErrorAndComplete()
     }
     
     this.state = Driver.system(
@@ -68,28 +69,17 @@ private sealed class MutationEvent<in Key, out State> {
 
 private fun <Key, State> reduce(state: Map<Key, State>,
                                 command: Command<Key, State>): Map<Key, State> = when (command) {
-  is Command.Update -> {
-    val newState = HashMap(state)
-    newState[command.state.first] = command.state.second
-    newState
-  }
-  is Command.Finish -> {
-    val newState = HashMap(state)
-    newState.remove(command.key)
-    newState
-  }
+  is Command.Update -> state + command.state
+  is Command.Finish -> state - command.key
 }
 
 private fun <Key, State> perKeyFeedbackLoop(effects: (Key) -> (Driver<State>) -> Driver<Command<Key, State>>): (Driver<Map<Key, State>>) -> SafeDriver<Command<Key, State>> {
   return { state ->
     val events = state.scanAndMaybeEmit(
-        state = mapOf<Key, State>(),
-        accumulator = { states ->
-          val oldState = states.first
-          val newState = states.second
-          
-          val newKeys = newState.keys
+        emptyMap<Key, State>(),
+        { (oldState, newState) ->
           val oldKeys = oldState.keys
+          val newKeys = newState.keys
           
           val finishedEvents: List<MutationEvent<Key, State>> = oldKeys.subtract(newKeys).map {
             MutationEvent.Finished<Key, State>(it)

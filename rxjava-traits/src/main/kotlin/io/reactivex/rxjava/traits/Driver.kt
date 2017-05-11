@@ -55,12 +55,10 @@ fun <Element> SharedSequence.Companion.never(): Driver<Element> =
 // operations
 
 fun <Element> SharedSequence.Companion.defer(factory: () -> Driver<Element>): Driver<Element> =
-    SharedSequence(Observable.defer { factory().source },
-                   DriverTraits.Companion)
+    SharedSequence(Observable.defer { factory().source }, DriverTraits.Companion)
 
 fun <Element> SharedSequence.Companion.merge(sources: Iterable<Driver<out Element>>): Driver<Element> =
-    SharedSequence(Observable.merge(sources.map { it.source }),
-                   DriverTraits.Companion)
+    SharedSequence(Observable.merge(sources.map { it.source }), DriverTraits.Companion)
 
 fun <Element> SharedSequence.Safe<DriverTraits.Companion, Element>.drive(onNext: (Element) -> Unit) =
     this.asObservable().subscribe(onNext)

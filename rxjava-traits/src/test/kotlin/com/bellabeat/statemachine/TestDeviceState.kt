@@ -10,22 +10,8 @@ import java.util.concurrent.TimeUnit
  */
 
 sealed class TestDeviceState {
-  sealed class PairState {
-    object Read : TestDeviceState.PairState()
-    data class Configure(val data: String) : TestDeviceState.PairState()
-    object Reset : TestDeviceState.PairState()
-  }
-  
-  sealed class SyncState {
-    object Read : TestDeviceState.SyncState()
-    data class Process(val data: String) : TestDeviceState.SyncState()
-    data class Save(val data: String, val path: String) : TestDeviceState.SyncState()
-    object Clear : TestDeviceState.SyncState()
-  }
-  
-  data class Pair(val state: TestDeviceState.PairState) : TestDeviceState()
-  data class Sync(val state: TestDeviceState.SyncState) : TestDeviceState()
-  
+  data class Pair(val state: PairState) : TestDeviceState()
+  data class Sync(val state: SyncState) : TestDeviceState()
   data class Start(val newState: TestDeviceState) : TestDeviceState()
   object Cancel : TestDeviceState()
   data class Error(val error: Throwable) : TestDeviceState()
@@ -41,6 +27,21 @@ sealed class TestDeviceState {
   }
 }
 
+sealed class PairState {
+  object Read : PairState()
+  data class Configure(val data: String) : PairState()
+  object Reset : PairState()
+  //    data class Error(val error: Throwable) : TestDeviceState.PairState()
+}
+
+sealed class SyncState {
+  object Read : SyncState()
+  data class Process(val data: String) : SyncState()
+  data class Save(val data: String, val path: String) : SyncState()
+  object Clear : SyncState()
+  //    data class Error(val error: Throwable) : TestDeviceState.SyncState()
+}
+
 data class Device(val id: Int)
 data class ConnectedDevice(val device: Device)
 
@@ -49,13 +50,15 @@ sealed class ConnectionResult {
   data class Success(val connectedDevice: ConnectedDevice) : ConnectionResult()
 }
 
+sealed class TestDeviceStateError : Throwable() {
+  object Connection : TestDeviceStateError()
+  object Sync : TestDeviceStateError()
+}
+
 class TestDeviceStateFeedbackLoops(
-    val scheduler: TestScheduler,
-    val pairData: String,
-    val syncData: String,
-    val syncSavePath: String,
-    val connect: (Device) -> Observable<ConnectionResult>
-) {
+    val scheduler: TestScheduler, val pairData: String, val syncData: String,
+    val syncSavePath: String, val connect: (Device) -> Observable<ConnectionResult>) {
+  
   fun feedbackLoops(key: Device): (Driver<TestDeviceState>) -> Driver<Command<Device, TestDeviceState>> {
     return { state ->
       state
@@ -66,7 +69,7 @@ class TestDeviceStateFeedbackLoops(
               return@switchMap state.switchMap<TestDeviceState, DriverTraits.Companion, Command<Device, TestDeviceState>> {
                 when (it) {
                   is TestDeviceState.Start -> Driver.just(Command.Update(Pair(key, it.newState)))
-                  else -> Driver.just(Command.Finish<Device, TestDeviceState>(key))
+                  else -> Driver.just(Command.Finish(key))
                 }
               }
             }
@@ -74,26 +77,25 @@ class TestDeviceStateFeedbackLoops(
             return@switchMap this
                 .connect(key, state, { (currentState, connectedDevice) ->
                   when (currentState) {
-                    is TestDeviceState.Pair -> this.handleState(key,
-                                                                connectedDevice,
-                                                                currentState.state)
-                    is TestDeviceState.Sync -> this.handleState(key,
-                                                                connectedDevice,
-                                                                currentState.state)
-                    is TestDeviceState.Start -> Observable.just(Command.Finish<Device, TestDeviceState>(
-                        key))
-                    is TestDeviceState.Cancel -> Observable.just(Command.Finish<Device, TestDeviceState>(
-                        key))
-                    is TestDeviceState.Error -> Observable.just(Command.Finish<Device, TestDeviceState>(
-                        key))
-                    is TestDeviceState.PoweredOff -> Observable.just(Command.Update(Pair(key,
-                                                                                         currentState.nextState)))
+                    is TestDeviceState.Pair ->
+                      this.handleState(key, connectedDevice, currentState.state)
+                    is TestDeviceState.Sync ->
+                      this.handleState(key, connectedDevice, currentState.state)
+                    is TestDeviceState.Start ->
+                      Observable.just(Command.Finish<Device, TestDeviceState>(key))
+                    is TestDeviceState.Cancel ->
+                      Observable.just(Command.Finish<Device, TestDeviceState>(key))
+                    is TestDeviceState.Error ->
+                      Observable.just(Command.Finish<Device, TestDeviceState>(key))
+                    is TestDeviceState.PoweredOff ->
+                      Observable.just(Command.Update(Pair(key, currentState.nextState)))
                   }
                 })
                 .asDriver(onErrorDriveWith = {
                   Driver.just(Command.Update(Pair(key, TestDeviceState.Error(it))))
                 })
           }
+          .debug("feedbackloops")
     }
   }
   
@@ -106,7 +108,7 @@ class TestDeviceStateFeedbackLoops(
           state
               .catchErrorAndComplete()
               .asObservable()
-              .take(1)
+              .first()
               .flatMap { currentState ->
                 when (connectionResult) {
                   is ConnectionResult.PoweredOff -> Observable.just(Command.Update(Pair(device,
@@ -121,43 +123,33 @@ class TestDeviceStateFeedbackLoops(
   }
   
   private fun handleState(device: Device, connectedDevice: ConnectedDevice,
-                          state: TestDeviceState.PairState): Observable<Command<Device, TestDeviceState>> = when (state) {
+                          state: PairState): Observable<Command<Device, TestDeviceState>> = when (state) {
   // connectedDevice would be used here
-    is TestDeviceState.PairState.Read -> this.update(10, device,
-                                                     TestDeviceState.Pair(TestDeviceState.PairState.Configure(
-                                                         this.pairData)))
-    is TestDeviceState.PairState.Configure -> this.update(40, device,
-                                                          TestDeviceState.Pair(TestDeviceState.PairState.Reset))
-    is TestDeviceState.PairState.Reset -> this.finish(10, device)
+    is PairState.Read -> this.update(10, device, TestDeviceState.Pair(PairState.Configure(
+        this.pairData)))
+    is PairState.Configure -> this.update(40, device, TestDeviceState.Pair(PairState.Reset))
+    is PairState.Reset -> this.finish(10, device)
   }
   
   private fun handleState(device: Device, connectedDevice: ConnectedDevice,
-                          state: TestDeviceState.SyncState): Observable<Command<Device, TestDeviceState>> = when (state) {
+                          state: SyncState): Observable<Command<Device, TestDeviceState>> = when (state) {
   // connectedDevice would be used here
-    is TestDeviceState.SyncState.Read -> this.update(10, device,
-                                                     TestDeviceState.Sync(TestDeviceState.SyncState.Process(
-                                                         this.syncData)))
-    is TestDeviceState.SyncState.Process -> this.update(50, device,
-                                                        TestDeviceState.Sync(TestDeviceState.SyncState.Save(
-                                                            this.syncData,
-                                                            this.syncSavePath)))
-    is TestDeviceState.SyncState.Save -> if (state.data == "error") Observable.error(Exception()) else this.update(
-        30, device, TestDeviceState.Sync(TestDeviceState.SyncState.Clear))
-    is TestDeviceState.SyncState.Clear -> this.finish(10, device)
+    is SyncState.Read -> this.update(10, device,
+                                     TestDeviceState.Sync(SyncState.Process(this.syncData)))
+    is SyncState.Process -> this.update(50, device,
+                                        TestDeviceState.Sync(SyncState.Save(this.syncData,
+                                                                            this.syncSavePath)))
+    is SyncState.Save -> if (state.data == "error") Observable.error(Exception()) else this.update(
+        30, device, TestDeviceState.Sync(SyncState.Clear))
+    is SyncState.Clear -> this.finish(10, device)
   }
   
   private fun update(period: Long, key: Device,
-                     state: TestDeviceState): Observable<Command<Device, TestDeviceState>> {
-    return Observable
-        .interval(period, TimeUnit.SECONDS, this.scheduler)
-        .take(1)
-        .map { Command.Update(Pair(key, state)) }
-  }
+                     state: TestDeviceState): Observable<Command<Device, TestDeviceState>> =
+      Observable.timer(period, TimeUnit.SECONDS, this.scheduler)
+          .map { Command.Update(Pair(key, state)) }
   
-  private fun finish(period: Long, key: Device): Observable<Command<Device, TestDeviceState>> {
-    return Observable
-        .interval(period, TimeUnit.SECONDS, this.scheduler)
-        .take(1)
-        .map { Command.Finish<Device, TestDeviceState>(key) }
-  }
+  private fun finish(period: Long, key: Device): Observable<Command<Device, TestDeviceState>> =
+      Observable.timer(period, TimeUnit.SECONDS, this.scheduler)
+          .map { Command.Finish<Device, TestDeviceState>(key) }
 }

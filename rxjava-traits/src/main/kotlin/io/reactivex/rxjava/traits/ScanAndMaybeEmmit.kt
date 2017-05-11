@@ -13,8 +13,8 @@ fun <Element, State, Emit> Observable<Element>.scanAndMaybeEmit(
       .scan(Pair<State, Emit?>(state, null), { (state, _), element ->
         accumulator(Pair(state, element))
       })
-      .flatMap { stateEmitPair ->
-        stateEmitPair.second?.let { Observable.just(it) } ?: Observable.empty()
+      .flatMap { (_, emit) ->
+        emit?.let { Observable.just(it) } ?: Observable.empty()
       }
 }
 
@@ -25,7 +25,7 @@ fun <Element, State, Emit> Driver<Element>.scanAndMaybeEmit(
       .scan(Pair<State, Emit?>(state, null), { (state, _), element ->
         accumulator(Pair(state, element))
       })
-      .flatMap { stateEmitPair ->
-        stateEmitPair.second?.let { Driver.just(it) } ?: Driver.empty()
+      .flatMap { (_, emit) ->
+        emit?.let { Driver.just(it) } ?: Driver.empty()
       }
 }
