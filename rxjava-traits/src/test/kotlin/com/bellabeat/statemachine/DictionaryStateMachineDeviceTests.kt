@@ -226,4 +226,178 @@ class DictionaryStateMachineDeviceTests {
       assertEquals(1, this.connectionCount)
     }
   }
+  
+  @Test
+  fun singleDeviceMultipleSequentialOperations() {
+    DriverTraits.schedulerIsNow({ this.scheduler }) {
+      this.makeStateMachine(this::perfectConnection)
+      val device = Device(1)
+      
+      assertEquals(0, this.connectionCount)
+      
+      this.scheduler.scheduleAt(300) { this.sync(device) }
+      this.scheduler.scheduleAt(500) { this.pair(device) }
+      this.scheduler.advanceTimeBy(1000)
+      
+      assertEquals(listOf(
+          mapOf(),
+          mapOf(Pair(device, TestDeviceState.Start(TestDeviceState.Sync(SyncState.Read)))),
+          mapOf(Pair(device, TestDeviceState.Sync(SyncState.Read))),
+          mapOf(Pair(device, TestDeviceState.Sync(SyncState.Process(this.syncData)))),
+          mapOf(Pair(device,
+                     TestDeviceState.Sync(SyncState.Save(this.syncData, this.syncSavePath)))),
+          mapOf(Pair(device, TestDeviceState.Sync(SyncState.Clear))),
+          mapOf(),
+          mapOf(Pair(device, TestDeviceState.Start(TestDeviceState.Pair(PairState.Read)))),
+          mapOf(Pair(device, TestDeviceState.Pair(PairState.Read))),
+          mapOf(Pair(device, TestDeviceState.Pair(PairState.Configure(this.pairData)))),
+          mapOf(Pair(device, TestDeviceState.Pair(PairState.Reset))),
+          mapOf()
+      ), this.observer.onNextEvents)
+      
+      assertEquals(2, this.connectionCount)
+    }
+  }
+  
+  @Test
+  fun singleDeviceInterruptOperationWithSameOperation() {
+    DriverTraits.schedulerIsNow({ this.scheduler }) {
+      this.makeStateMachine(this::perfectConnection)
+      val device = Device(1)
+      
+      assertEquals(0, this.connectionCount)
+      
+      this.scheduler.scheduleAt(300) { this.sync(device) }
+      this.scheduler.scheduleAt(380) { this.sync(device) }
+      this.scheduler.advanceTimeBy(1000)
+      
+      assertEquals(listOf(
+          mapOf(),
+          mapOf(Pair(device, TestDeviceState.Start(TestDeviceState.Sync(SyncState.Read)))),
+          mapOf(Pair(device, TestDeviceState.Sync(SyncState.Read))),
+          mapOf(Pair(device, TestDeviceState.Sync(SyncState.Process(this.syncData)))),
+          mapOf(Pair(device,
+                     TestDeviceState.Sync(SyncState.Save(this.syncData, this.syncSavePath)))),
+          mapOf(Pair(device, TestDeviceState.Start(TestDeviceState.Sync(SyncState.Read)))),
+          mapOf(Pair(device, TestDeviceState.Sync(SyncState.Read))),
+          mapOf(Pair(device, TestDeviceState.Sync(SyncState.Process(this.syncData)))),
+          mapOf(Pair(device,
+                     TestDeviceState.Sync(SyncState.Save(this.syncData, this.syncSavePath)))),
+          mapOf(Pair(device, TestDeviceState.Sync(SyncState.Clear))),
+          mapOf()
+      ), this.observer.onNextEvents)
+      
+      assertEquals(2, this.connectionCount)
+    }
+  }
+  
+  @Test
+  fun singleDeviceInterruptOperationWithDifferentOperation() {
+    DriverTraits.schedulerIsNow({ this.scheduler }) {
+      this.makeStateMachine(this::perfectConnection)
+      val device = Device(1)
+      
+      assertEquals(0, this.connectionCount)
+      
+      this.scheduler.scheduleAt(300) { this.sync(device) }
+      this.scheduler.scheduleAt(380) { this.pair(device) }
+      this.scheduler.advanceTimeBy(1000)
+      
+      assertEquals(listOf(
+          mapOf(),
+          mapOf(Pair(device, TestDeviceState.Start(TestDeviceState.Sync(SyncState.Read)))),
+          mapOf(Pair(device, TestDeviceState.Sync(SyncState.Read))),
+          mapOf(Pair(device, TestDeviceState.Sync(SyncState.Process(this.syncData)))),
+          mapOf(Pair(device,
+                     TestDeviceState.Sync(SyncState.Save(this.syncData, this.syncSavePath)))),
+          mapOf(Pair(device, TestDeviceState.Start(TestDeviceState.Pair(PairState.Read)))),
+          mapOf(Pair(device, TestDeviceState.Pair(PairState.Read))),
+          mapOf(Pair(device, TestDeviceState.Pair(PairState.Configure(this.pairData)))),
+          mapOf(Pair(device, TestDeviceState.Pair(PairState.Reset))),
+          mapOf()
+      ), this.observer.onNextEvents)
+      
+      assertEquals(2, this.connectionCount)
+    }
+  }
+  
+  @Test
+  fun twoDevicesSameOperationSequential() {
+    DriverTraits.schedulerIsNow({ this.scheduler }) {
+      this.makeStateMachine(this::perfectConnection)
+      val device1 = Device(1)
+      val device2 = Device(2)
+      
+      assertEquals(0, this.connectionCount)
+      
+      this.scheduler.scheduleAt(300) { this.sync(device1) }
+      this.scheduler.scheduleAt(500) { this.sync(device2) }
+      this.scheduler.advanceTimeBy(1000)
+      
+      assertEquals(listOf(
+          mapOf(),
+          mapOf(Pair(device1, TestDeviceState.Start(TestDeviceState.Sync(SyncState.Read)))),
+          mapOf(Pair(device1, TestDeviceState.Sync(SyncState.Read))),
+          mapOf(Pair(device1, TestDeviceState.Sync(SyncState.Process(this.syncData)))),
+          mapOf(Pair(device1,
+                     TestDeviceState.Sync(SyncState.Save(this.syncData, this.syncSavePath)))),
+          mapOf(Pair(device1, TestDeviceState.Sync(SyncState.Clear))),
+          mapOf(),
+          mapOf(Pair(device2, TestDeviceState.Start(TestDeviceState.Sync(SyncState.Read)))),
+          mapOf(Pair(device2, TestDeviceState.Sync(SyncState.Read))),
+          mapOf(Pair(device2, TestDeviceState.Sync(SyncState.Process(this.syncData)))),
+          mapOf(Pair(device2,
+                     TestDeviceState.Sync(SyncState.Save(this.syncData, this.syncSavePath)))),
+          mapOf(Pair(device2, TestDeviceState.Sync(SyncState.Clear))),
+          mapOf()
+      ), this.observer.onNextEvents)
+      
+      assertEquals(2, this.connectionCount)
+    }
+  }
+  
+  @Test
+  fun twoDevicesDifferentOperationOverlappingWithBootup() {
+    DriverTraits.schedulerIsNow({ this.scheduler }) {
+      this.makeStateMachine(this::connectionWithBootup)
+      val device1 = Device(1)
+      val device2 = Device(2)
+      
+      assertEquals(0, this.connectionCount)
+      
+      this.scheduler.scheduleAt(300) { this.sync(device1) }
+      this.scheduler.scheduleAt(355) { this.pair(device2) }
+      this.scheduler.advanceTimeBy(1000)
+      
+      assertEquals(listOf(
+          mapOf(),
+          mapOf(Pair(device1, TestDeviceState.Start(TestDeviceState.Sync(SyncState.Read)))),
+          mapOf(Pair(device1, TestDeviceState.Sync(SyncState.Read))),
+          mapOf(Pair(device1, TestDeviceState.PoweredOff(TestDeviceState.Sync(SyncState.Read)))),
+          mapOf(Pair(device1, TestDeviceState.Sync(SyncState.Read))),
+          mapOf(Pair(device1, TestDeviceState.Sync(SyncState.Process(this.syncData)))),
+          mapOf(Pair(device1, TestDeviceState.Sync(SyncState.Process(this.syncData))),
+                Pair(device2, TestDeviceState.Start(TestDeviceState.Pair(PairState.Read)))),
+          mapOf(Pair(device1, TestDeviceState.Sync(SyncState.Process(this.syncData))),
+                Pair(device2, TestDeviceState.Pair(PairState.Read))),
+          mapOf(Pair(device1, TestDeviceState.Sync(SyncState.Process(this.syncData))),
+                Pair(device2, TestDeviceState.PoweredOff(TestDeviceState.Pair(PairState.Read)))),
+          mapOf(Pair(device1, TestDeviceState.Sync(SyncState.Process(this.syncData))),
+                Pair(device2, TestDeviceState.Pair(PairState.Read))),
+          mapOf(Pair(device1,
+                     TestDeviceState.Sync(SyncState.Save(this.syncData, this.syncSavePath))),
+                Pair(device2, TestDeviceState.Pair(PairState.Read))),
+          mapOf(Pair(device1,
+                     TestDeviceState.Sync(SyncState.Save(this.syncData, this.syncSavePath))),
+                Pair(device2, TestDeviceState.Pair(PairState.Configure(pairData)))),
+          mapOf(Pair(device1, TestDeviceState.Sync(SyncState.Clear)),
+                Pair(device2, TestDeviceState.Pair(PairState.Configure(pairData)))),
+          mapOf(Pair(device2, TestDeviceState.Pair(PairState.Configure(pairData)))),
+          mapOf(Pair(device2, TestDeviceState.Pair(PairState.Reset))),
+          mapOf()
+      ), this.observer.onNextEvents)
+      
+      assertEquals(2, this.connectionCount)
+    }
+  }
 }
