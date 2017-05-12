@@ -200,4 +200,30 @@ class DictionaryStateMachineDeviceTests {
       assertEquals(1, this.connectionCount)
     }
   }
+  
+  @Test
+  fun singleDeviceSingleFailingOperation() {
+    DriverTraits.schedulerIsNow({ this.scheduler }) {
+      this.makeStateMachine({ perfectConnection(it) }, errorSyncData)
+      val device = Device(1)
+      
+      assertEquals(0, this.connectionCount)
+      
+      this.scheduler.scheduleAt(300) { this.sync(device) }
+      this.scheduler.advanceTimeBy(1000)
+      
+      assertEquals(listOf(
+          mapOf(),
+          mapOf(Pair(device, TestDeviceState.Start(TestDeviceState.Sync(SyncState.Read)))),
+          mapOf(Pair(device, TestDeviceState.Sync(SyncState.Read))),
+          mapOf(Pair(device, TestDeviceState.Sync(SyncState.Process(this.errorSyncData)))),
+          mapOf(Pair(device,
+                     TestDeviceState.Sync(SyncState.Save(this.errorSyncData, this.syncSavePath)))),
+          mapOf(Pair(device, TestDeviceState.Sync(SyncState.Error(TestDeviceStateError.Sync)))),
+          mapOf()
+      ), this.observer.onNextEvents)
+      
+      assertEquals(1, this.connectionCount)
+    }
+  }
 }
